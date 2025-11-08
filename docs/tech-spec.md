@@ -169,9 +169,13 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 本地正则验证：`^[a-z0-9]+(?:-[a-z0-9]+)*$` 且长度 ≤ 48。
   - 若不合规，携带违规原因提示模型重试；最多 `maxAttempts` 次，失败则退出。
   - 唯一性检查：
-    - `docs/{slug}/` 不存在；
-    - `git show-ref --verify refs/heads/feature-{slug}` 不存在（或按 `branchFormat` 展开）。
-    - 冲突则将“slug 已占用”的事实反馈给 LLM 请求替代 slug，直至达到重试上限。
+    - 文档目录：`{docsDir}/{slug}/` 不存在；
+    - 本地分支：`git show-ref --verify refs/heads/{branch}` 不存在（`{branch}` 由 `branchFormat` 展开）；
+    - 远端分支（最佳努力）：
+      - 解析远程 R：复用 `resolveRemoteForTarget(defaultMergeTarget)` 的规则；若能解析，则执行 `git ls-remote --heads {R} {branch}`；
+      - 若远端已存在同名分支，则视为“slug 已占用”，把该事实反馈给 LLM 生成替代 slug；
+      - 若无法唯一解析远程（多远程且 `target` 无 upstream，或未配置远程），跳过远端唯一性校验并输出醒目告警，建议为 `target` 设置 upstream 以启用完整校验；
+    - 任一冲突都会把“已占用”事实反馈给 LLM 请求替代 slug，直至达到重试上限。
 - 执行（顺序保证不污染主分支）：
   - 先创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。若分支创建/切换失败，立即退出，不进行任何文件写入。
   - 在该新分支内创建目录：`{docsDir}/{slug}/`。
@@ -207,13 +211,14 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 - 执行：
   - `git fetch {R}`（刷新远程引用）；
   - `git switch {target}`（已确保有 upstream）；
-  - `git -c pull.rebase=false pull --ff-only`（避免受用户全局 rebase 配置影响，且只允许快进更新，否则以 5 退出并给出提示）。
+  - 优先快进拉取：`git -c pull.rebase=false pull --ff-only`（避免受用户全局 rebase 配置影响）。
+  - 若因“非快进”导致失败（fast-forward not possible），自动回退为普通拉取：`git -c pull.rebase=false pull`，将远端更新合入本地 `target` 后继续；其它错误（网络/认证等）以 5 退出并给出提示。
   - 普通合并：`git merge --no-ff {feature}`；
-  - 合并成功后自动推送：`git push`（已设置 upstream，若被远程拒绝则以 5 退出并提示可能为竞态更新，建议重试前先 `git fetch && git pull --ff-only`）。
+  - 合并成功后自动推送：`git push`（已设置 upstream；若被远程拒绝则以 5 退出并提示远端存在新的更新，建议重新执行本流程：fetch → ff-only → 必要时回退到普通 pull → 合并 → 推送）。
 - 冲突与失败处理：
-  - 合并产生冲突：打印解决步骤并以非零码退出，不执行推送；
-  - `pull --ff-only` 失败：提示本地目标分支存在未推送/额外提交，要求处理后重试；
-  - `push` 被拒绝：提示远程有新提交产生竞态，建议重新 `pull --ff-only` 后再次执行 `spec merge`。
+  - 合并产生冲突（`git merge --no-ff {feature}`）：打印解决步骤并以非零码退出，不执行推送；
+  - 回退为普通 `git pull` 时若产生冲突：提示先在 `target` 上解决并提交冲突，然后重新执行 `spec merge`；
+  - `push` 被拒绝：提示远端有新提交产生竞态，建议重新执行合并流程（将再次经历 fetch → ff-only → 必要时回退到普通 pull → 合并 → 推送）。
 
 ## 7. LLM 集成与 slug 规范
 
