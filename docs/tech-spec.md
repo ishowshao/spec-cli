@@ -96,7 +96,7 @@ zod Schema（语义）：
   testFileExt?: string,            # 自动探测，例：".test.ts"
   branchFormat: string,            # 默认 "feature-{slug}"
   defaultMergeTarget: string,      # 默认 "main"
-  mergeStrategy: "merge"|"squash"|"rebase",  # 默认 "merge"
+  mergeStrategy: "merge"|"squash",            # 默认 "merge"（不支持 rebase）
   llm: {
     provider: "openai",
     model: string,                 # 默认 "gpt-4o-mini"
@@ -154,15 +154,18 @@ zod Schema（语义）：
 - 执行：
   - 创建目录：`{docsDir}/{slug}/`。
   - 在该目录下生成空白文件：按 `docTemplates` 列表创建（内容为空）。
-  - 若配置了 `testsDir` 与 `testFileExt`，创建同名空测试文件：`{testsDir}/{slug}{testFileExt}`。
+  - 若配置了 `testsDir` 与 `testFileExt`，依据项目结构自动选择层级创建测试文件：
+    - 若存在 `tests/e2e/`，则在 `tests/e2e/{slug}{testFileExt}` 创建；
+    - 若存在 `__tests__/` 或 `tests/unit/`，则在对应目录下创建；
+    - 否则在 `{testsDir}/{slug}{testFileExt}` 创建；
+    - 仅作为占位文件，不强制绑定特定框架命名习惯。
   - 创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。
   - 初始提交：`git add` → `git commit -m "feat({slug}): scaffold feature structure"`。
 - 输出：展示 slug、分支名、创建的路径；遇错给出明确恢复建议。
 
 ### 6.3 spec list
 
-- 数据源：默认基于 `{docsDir}` 下的一级子目录名；仅输出满足 slug 正则的目录名。
-- 可选增强（保留为内部实现）：若需要对齐分支视图，可比对 `branchFormat` 解析出的 slug 并做并集/去重（MVP 对外只宣称基于 docs 目录）。
+- 数据源：仅基于 `{docsDir}` 下的一级子目录名；仅输出满足 slug 正则的目录名（MVP 不对分支做并集/去重）。
 
 ### 6.4 spec merge <feature-slug>
 
@@ -176,8 +179,7 @@ zod Schema（语义）：
   - 根据 `mergeStrategy`：
     - merge：`git merge --no-ff {feature}`
     - squash：`git merge --squash {feature}` → `git commit`
-    - rebase：`git rebase {feature}`（如冲突则中止并提示手动处理）
-  - 默认不删除 feature 分支；是否推送由参数 `--push` 或后续版本配置决定（MVP 默认不推）。
+  - 合并成功后自动 `git push` 目标分支（无冲突即推送）；默认不删除 feature 分支。
 - 冲突处理：打印步骤提示并以非零码退出，保留当前状态供用户解决。
 
 ## 7. LLM 集成与 slug 规范
@@ -253,7 +255,7 @@ zod Schema（语义）：
 - config：加载/默认值回填/非法配置报错。
 - preflight：仓库检测、工作区清洁度解析、错误映射。
 - slug：响应解析、正则校验、违规反馈拼接、重试上限逻辑、唯一性冲突处理。
-- git 参数构造：merge/squash/rebase 的命令拼装。
+- git 参数构造：merge/squash 的命令拼装（不包含 rebase）。
 
 ### 10.3 集成测试（E2E）
 
@@ -332,7 +334,7 @@ zod Schema（语义）：
 
 - 从不打印或持久化 `OPENAI_API_KEY`；
 - 对错误日志做敏感字段清洗；
-- 不篡改用户已有文件，仅创建新目录/文件与分支；
+- `spec create` 仅创建新目录/文件与分支；`spec merge` 仅通过 Git 合并导致的变更；
 - 所有写入前均通过预检，失败即中止。
 
 ## 14. 风险与缓解

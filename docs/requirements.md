@@ -91,7 +91,7 @@ spec create <description>
 1. 调用 LLM 接口，根据描述生成规范的 feature-slug
 2. 根据配置文件创建文档目录：`docs/{feature-slug}/`
 3. 在文档目录中创建配置的文档文件（空文件或包含基础模板）
-4. 如果项目配置了测试目录，创建对应的测试文件
+4. 如果项目配置了测试目录，依据自动探测的项目结构创建对应的测试文件（例如检测到 `tests/e2e/` 则在 `tests/e2e/` 下创建），不对层级做硬编码限制
 5. 创建并切换到新的 feature 分支（命名遵循配置的格式）
 6. 将创建的文件提交到 Git（使用规范的 commit message）
 
@@ -116,11 +116,10 @@ spec list
 列出所有已创建的 feature。
 
 **输出内容**：
-- Feature slug 列表
+- 按字母序输出的 Feature slug 列表（仅 slug）
 
 **识别规则**：
-- 基于文档目录结构识别（`docs/{feature-slug}/`）
-- 或基于分支命名规则识别
+- 仅基于文档目录结构识别（`docs/{feature-slug}/`）
 
 ### 5.4 合并功能 (spec merge)
 
@@ -137,11 +136,12 @@ spec merge <feature-slug>
 2. 切换到目标分支
 3. 拉取最新代码
 4. 合并 feature 分支
-5. 推送合并结果（如果需要）
+5. 合并成功后自动推送（发生冲突时不推送）
 
 **行为要求**：
 - 不自动删除 feature 分支
-- 合并方式可配置（merge/squash/rebase）
+- 合并方式可配置（merge/squash），不支持 rebase
+- 合并前默认已执行 `git pull` 目标分支；合并成功后自动 `git push`
 - 提供清晰的合并状态反馈
 
 **异常处理**：
@@ -166,8 +166,12 @@ spec merge <feature-slug>
 ### 6.3 集成性
 
 - 依赖本地 Git 命令，无需额外安装
-- 支持主流 LLM 服务（通过环境变量配置）
+- MVP 仅支持 OpenAI（通过环境变量配置），后续可扩展其它 Provider
 - 兼容常见的项目结构和测试框架
+
+### 6.4 提交规范
+
+- 采用 Conventional Commits 规范，例如：`feat(user-authentication): scaffold feature structure`
 
 ### 6.4 可靠性
 
@@ -202,7 +206,9 @@ spec merge <feature-slug>
 
 **用途**：根据用户描述生成规范的 feature-slug
 
-**配置方式**：通过环境变量配置 API Key 和 Provider
+**MVP 限定**：仅支持 OpenAI。通过环境变量 `OPENAI_API_KEY`（可选：`OPENAI_BASE_URL`）配置。
+
+**默认行为**：LLM 调用超时 8000ms，最多重试 3 次（含原因反馈重试）；这些默认值可在配置中调整。
 
 **说明要求**：在工具文档中提供详细的配置说明
 
@@ -218,9 +224,18 @@ spec merge <feature-slug>
 - 工具需要在 Git 仓库根目录或子目录中运行
 - 需要网络连接（调用 LLM API）
 - 遵循项目现有的目录结构和命名规范
-- 不修改现有的文件内容，仅创建新文件和分支
+- `spec create` 仅创建新文件与分支；`spec merge` 通过 Git 合并（可能修改目标分支上的现有文件）
 
-## 10. 未来规划
+## 10. 错误与退出码（MVP）
+
+- 0：成功
+- 2：配置/参数校验失败
+- 3：预检失败（例如非 Git 仓库/工作区不干净）
+- 4：LLM 调用或校验失败
+- 5：Git 操作失败
+- 1：其他未知错误
+
+## 11. 未来规划
 
 - 支持删除和归档 feature
 - Feature 状态跟踪和进度管理
