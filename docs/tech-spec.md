@@ -64,7 +64,7 @@ src/
   core/
     config.ts            # 读取/校验 spec.config.json（zod）
     preflight.ts         # Git/工作区/网络/配置检查
-    templates.ts         # 空白文档/测试文件创建
+    templates.ts         # 空白文档/测试文件创建（支持 testsMode/testsDirs）
     slug.ts              # 基于 LLM 的 slug 生成与校验
     git.ts               # Git 封装（execa）
     logger.ts            # 输出/颜色/verbose
@@ -98,12 +98,16 @@ zod Schema（语义）：
   schemaVersion: 1,
   docsDir: string,                 # 默认 "docs"
   docTemplates: string[],          # 默认 ["requirements.md","tech-spec.md","user-stories.md"]
-  testsDir?: string | null,        # 自动探测，可为空表示不生成测试文件
+  testsMode?: "single"|"multiple"|"none", # 测试落盘策略（由 init 决定），默认：若 testsDirs 为空则 "none"，否则按长度推断
+  testsDirs?: string[] | null,     # 由 init 自动探测并经用户确认；single: 恰 1 个；multiple: >=1 个；none/null: 不生成测试
   testFileExt?: string,            # 自动探测，例：".test.ts"
   branchFormat: string,            # 默认 "feature-{slug}"
   defaultMergeTarget: string       # 默认 "main"
 }
 ```
+
+兼容性（读取层面）：若旧版本仅存在 `testsDir: string` 字段，则等价于
+`testsMode = "single"` 且 `testsDirs = [testsDir]`。
 
 命名与位置（MVP）：
 - 文件名：`spec.config.json`
@@ -117,7 +121,8 @@ zod Schema（语义）：
   "schemaVersion": 1,
   "docsDir": "docs",
   "docTemplates": ["requirements.md", "tech-spec.md", "user-stories.md"],
-  "testsDir": "tests",
+  "testsMode": "single",
+  "testsDirs": ["tests"],
   "testFileExt": ".test.ts",
   "branchFormat": "feature-{slug}",
   "defaultMergeTarget": "main"
@@ -139,9 +144,18 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 ### 6.1 spec init
 
 - 目的：交互式创建 `spec.config.json`。
-- 自动探测：`docs/` 是否存在；常见测试目录（`tests/`、`src/**/__tests__/`）；测试扩展名（扫描现有 `*.test.*` 或 `*.spec.*`）。
-- 交互项（@clack/prompts）：docsDir、docTemplates（默认三项且均为空白）、testsDir、testFileExt、branchFormat、defaultMergeTarget。
-- 校验与落盘：使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
+- 自动探测：
+  - `docs/` 是否存在；
+  - 常见测试目录与分层：例如 `tests/`、`tests/e2e/`、`tests/unit/`、`src/**/__tests__/`；
+  - 测试扩展名：扫描现有 `*.test.*` 或 `*.spec.*` 推断优先候选。
+- 交互项（@clack/prompts）：
+  - `docsDir`、`docTemplates`（默认三项且均为空白）；
+  - `testsMode`（`single`/`multiple`/`none`）与 `testsDirs`（基于探测结果给出候选，用户可增删改）；
+  - `testFileExt`、`branchFormat`、`defaultMergeTarget`。
+- 校验与落盘：
+  - `testsMode = single` 时要求 `testsDirs.length === 1`；`multiple` 时要求 `>=1`；`none` 时 `testsDirs` 可省略/为空；
+  - 所有 `testsDirs` 必须为相对路径且目录存在（如不存在可选择创建）；
+  - 使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
 
 ### 6.2 spec create <description>
 
@@ -162,10 +176,10 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 先创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。若分支创建/切换失败，立即退出，不进行任何文件写入。
   - 在该新分支内创建目录：`{docsDir}/{slug}/`。
   - 在目录下生成空白文件：按 `docTemplates` 列表创建（内容为空）。
-  - 若配置了 `testsDir` 与 `testFileExt`，依据项目结构自动选择层级创建测试文件：
-    - 若存在 `tests/e2e/`，则在 `tests/e2e/{slug}{testFileExt}` 创建；
-    - 若存在 `__tests__/` 或 `tests/unit/`，则在对应目录下创建；
-    - 否则在 `{testsDir}/{slug}{testFileExt}` 创建；
+  - 测试文件创建严格按配置落盘（不再运行期猜测层级）：
+    - 当 `testsMode = "single"` 且 `testsDirs=[d]` 时，在 `d/{slug}{testFileExt}` 创建；
+    - 当 `testsMode = "multiple"` 且 `testsDirs=[d1,d2,...]` 时，分别在每个目录创建同名占位测试文件；
+    - 当 `testsMode = "none"` 或 `testsDirs` 为空时，不创建测试文件；
     - 仅作为占位文件，不强制绑定特定框架命名习惯。
   - 初始提交：`git add` → `git commit -m "feat({slug}): scaffold feature structure"`。
 - 输出：展示 slug、分支名、创建的路径；遇错给出明确恢复建议（所有变更均在 feature 分支内，主分支不受影响）。
@@ -178,16 +192,20 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 ### 6.4 spec merge <feature-slug>
 
 - 预检（含远程健壮性）：
-  - 固定远程名（MVP）：`origin`。
+  - 解析远程名 R（不硬编码）：
+    - 若目标分支 `target` 已设置 upstream，取其远程作为 R；
+    - 否则读取 `git remote`：
+      - 若仅有一个远程，取该远程为 R；
+      - 若有多个远程且无 upstream，直接失败（码 5），提示用户为 `target` 设置 upstream（示例：`git push -u <remote> {target}` 或 `git branch --set-upstream-to <remote>/{target} {target}`）。
   - 工作区干净；
   - feature 分支存在（本地）；
   - 目标分支 `target = defaultMergeTarget`：
-    - 远程存在性：`git ls-remote --heads origin {target}` 成功，否则以错误码 5 退出（提示“目标分支不存在于远程”）。
+    - 远程存在性：`git ls-remote --heads {R} {target}` 成功，否则以错误码 5 退出（提示“远程不存在该目标分支”）。
     - 本地存在性：
-      - 若本地不存在：`git fetch origin {target}` 后，`git switch -c {target} --track origin/{target}` 创建并跟踪；失败则以 5 退出。
-      - 若本地存在但未设置 upstream：`git branch --set-upstream-to origin/{target} {target}`；失败以 5 退出。
+      - 若本地不存在：`git fetch {R} {target}` 后，`git switch -c {target} --track {R}/{target}` 创建并跟踪；失败则以 5 退出。
+      - 若本地存在但未设置 upstream：`git branch --set-upstream-to {R}/{target} {target}`；失败以 5 退出。
 - 执行：
-  - `git fetch origin`（刷新远程引用）；
+  - `git fetch {R}`（刷新远程引用）；
   - `git switch {target}`（已确保有 upstream）；
   - `git -c pull.rebase=false pull --ff-only`（避免受用户全局 rebase 配置影响，且只允许快进更新，否则以 5 退出并给出提示）。
   - 普通合并：`git merge --no-ff {feature}`；
@@ -244,9 +262,11 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - `isClean()`：`git status --porcelain`；
   - `branchExists(name)`：`git show-ref --verify refs/heads/{name}`；
   - `getUpstream(branch)`：解析 `@{u}`，判断是否已设置 upstream；
-  - `ensureTracking(target, remote="origin")`：
-    - 若远程 `origin/{target}` 存在且本地不存在，创建并跟踪；
-    - 若本地存在但无 upstream，设置 `origin/{target}` 为 upstream；
+  - `resolveRemoteForTarget(target)`：远程解析——若 `target` 有 upstream，返回其远程；否则读取 `git remote`，仅有一个远程则返回该远程；若多远程且无 upstream，返回错误与修复提示。
+  - `ensureTracking(target)`：
+    - 调用 `resolveRemoteForTarget(target)` 确定远程 R；
+    - 若远程 `{R}/{target}` 存在且本地不存在，创建并跟踪；
+    - 若本地存在但无 upstream，设置 `{R}/{target}` 为 upstream；
   - `switch/create/commit/merge/pull/push` 等封装，失败返回结构化错误（含 `hint`）。
 - 安全原则（分支先行，写入隔离）：在通过预检后，先创建并切换到 feature 分支；任何文件写入仅发生在该分支内。任一步失败时主分支不受影响（原子性/隔离）。
 
@@ -273,16 +293,17 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 ### 10.2 单元测试（示例）
 
-- config：加载/默认值回填/非法配置报错。
+- config：加载/默认值回填/非法配置报错；`testsMode/testsDirs` 的组合校验与旧字段 `testsDir` 的兼容映射。
 - preflight：仓库检测、工作区清洁度解析、错误映射。
 - slug：响应解析、正则校验、违规反馈拼接、重试上限逻辑、唯一性冲突处理。
 - git 参数构造：普通 merge 的命令拼装（不包含 squash/rebase）。
 
 ### 10.3 集成测试（E2E）
 
-- `spec init`：在空仓库内生成 `spec.config.json`，断言内容与默认值。
+- `spec init`：在空仓库内生成 `spec.config.json`，断言内容与默认值；当探测到多层测试结构时，提示并持久化 `testsMode = multiple` 与 `testsDirs`。
 - `spec create`：
   - 生成 `docs/{slug}/` 与空白模板；
+  - 按 `testsMode/testsDirs` 正确落盘占位测试文件（single: 正好 1 个；multiple: 在每个目录各 1 个；none: 0 个）；
   - 新建分支并提交；
   - 冲突与不合规返回路径验证（借助 FakeLlmClient 注入不同响应）。
 - `spec list`：基于 docs 目录正确枚举；断言输出按字母序（ASCII 升序）排序且仅包含 slug 文本。
