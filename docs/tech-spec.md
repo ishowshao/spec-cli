@@ -171,10 +171,6 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 唯一性检查：
     - 文档目录：`{docsDir}/{slug}/` 不存在；
     - 本地分支：`git show-ref --verify refs/heads/{branch}` 不存在（`{branch}` 由 `branchFormat` 展开）；
-    - 远端分支（最佳努力）：
-      - 解析远程 R：复用 `resolveRemoteForTarget(defaultMergeTarget)` 的规则；若能解析，则执行 `git ls-remote --heads {R} {branch}`；
-      - 若远端已存在同名分支，则视为“slug 已占用”，把该事实反馈给 LLM 生成替代 slug；
-      - 若无法唯一解析远程（多远程且 `target` 无 upstream，或未配置远程），跳过远端唯一性校验并输出醒目告警，建议为 `target` 设置 upstream 以启用完整校验；
     - 任一冲突都会把“已占用”事实反馈给 LLM 请求替代 slug，直至达到重试上限。
 - 执行（顺序保证不污染主分支）：
   - 先创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。若分支创建/切换失败，立即退出，不进行任何文件写入。
@@ -264,11 +260,6 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - `isClean()`：`git status --porcelain`；
   - `branchExists(name)`：`git show-ref --verify refs/heads/{name}`；
   - `getUpstream(branch)`：解析 `@{u}`，判断是否已设置 upstream；
-  - `resolveRemoteForTarget(target)`：远程解析——若 `target` 有 upstream，返回其远程；否则读取 `git remote`，仅有一个远程则返回该远程；若多远程且无 upstream，返回错误与修复提示。
-  - `ensureTracking(target)`：
-    - 调用 `resolveRemoteForTarget(target)` 确定远程 R；
-    - 若远程 `{R}/{target}` 存在且本地不存在，创建并跟踪；
-    - 若本地存在但无 upstream，设置 `{R}/{target}` 为 upstream；
   - `switch/create/commit/merge/pull/push` 等封装，失败返回结构化错误（含 `hint`）。
 - 安全原则（分支先行，写入隔离）：在通过预检后，先创建并切换到 feature 分支；任何文件写入仅发生在该分支内。任一步失败时主分支不受影响（原子性/隔离）。
 
