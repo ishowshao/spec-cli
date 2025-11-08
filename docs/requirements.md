@@ -58,7 +58,7 @@ Spec CLI 是一个命令行工具，用于规范化软件开发流程中的 Feat
 ### 5.1 初始化配置 (spec init)
 
 **功能描述**：
-通过交互式向导帮助用户配置项目规范，生成配置文件。
+通过交互式向导帮助用户配置项目规范，在仓库根目录生成 `spec.config.json` 配置文件。
 
 **配置项**：
 - 文档目录路径（默认：`docs/`）
@@ -208,7 +208,7 @@ spec merge <feature-slug>
 
 **MVP 限定**：仅支持 OpenAI。通过环境变量 `OPENAI_API_KEY`（可选：`OPENAI_BASE_URL`）配置。
 
-**默认行为**：LLM 调用超时 8000ms，最多重试 3 次（含原因反馈重试）；这些默认值可在配置中调整。
+**默认行为**：LLM 调用超时 8000ms，最多重试 3 次（含原因反馈重试）；可通过环境变量调整：`SPEC_OPENAI_MODEL`、`SPEC_LLM_TIMEOUT_MS`、`SPEC_LLM_MAX_ATTEMPTS`。
 
 **说明要求**：在工具文档中提供详细的配置说明
 

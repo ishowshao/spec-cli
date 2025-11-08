@@ -35,8 +35,8 @@
 - 交互式向导：`@clack/prompts`（`spec init`）。
 
 5) LLM 客户端
-- 使用 LangChain.js（`@langchain/openai`）封装 OpenAI；温度设为 0；网络超时与重试由我们控制。
-LLM 调用失败时终止并提示用户重试。
+- 使用 LangChain.js（`@langchain/openai`）封装 OpenAI；网络超时与重试由我们控制。
+- LLM 调用失败时终止并提示用户重试。
 
 6) Git 适配
 - 通过 `execa` 调用本地 `git`；在执行步骤前做“预检”，确保在 Git 仓库内且工作区干净。
@@ -83,7 +83,13 @@ templates/
 - LLM：`@langchain/core`、`@langchain/openai`
 - 开发：`typescript`、`tsx`、`vitest`、`tempy`、`rimraf`（清理 dist）
 
-## 5. 配置规范（spec.config.json）
+## 5. 配置规范
+
+本项目区分两类配置：
+- 目标仓库配置（项目级，随仓库提交）：`spec.config.json`
+- CLI 全局配置（工具级，随开发者环境）：环境变量（MVP）
+
+### 5.1 目标仓库配置：`spec.config.json`
 
 zod Schema（语义）：
 
@@ -95,16 +101,14 @@ zod Schema（语义）：
   testsDir?: string | null,        # 自动探测，可为空表示不生成测试文件
   testFileExt?: string,            # 自动探测，例：".test.ts"
   branchFormat: string,            # 默认 "feature-{slug}"
-  defaultMergeTarget: string,      # 默认 "main"
-  // 合并方式固定为普通 merge（不支持 rebase/squash），因此不提供 mergeStrategy 配置项
-  llm: {
-    provider: "openai",
-    model: string,                 # 默认 "gpt-4o-mini"
-    timeoutMs: number,             # 默认 8000
-    maxAttempts: number            # 默认 3（首次+最多两次重试）
-  }
+  defaultMergeTarget: string       # 默认 "main"
 }
 ```
+
+命名与位置（MVP）：
+- 文件名：`spec.config.json`
+- 位置：仓库根目录
+- 支持范围：MVP 仅支持该文件名
 
 示例：
 
@@ -116,16 +120,19 @@ zod Schema（语义）：
   "testsDir": "tests",
   "testFileExt": ".test.ts",
   "branchFormat": "feature-{slug}",
-  "defaultMergeTarget": "main",
-  
-  "llm": {
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "timeoutMs": 8000,
-    "maxAttempts": 3
-  }
+  "defaultMergeTarget": "main"
 }
 ```
+
+### 5.2 CLI 全局配置：环境变量（MVP）
+
+LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓库的 `spec.config.json`。
+
+- `OPENAI_API_KEY`（必需）：OpenAI API Key。
+- `OPENAI_BASE_URL`（可选）：自定义 API Base URL。
+- `SPEC_OPENAI_MODEL`（可选，默认 `gpt-5-mini`）：模型名。
+- `SPEC_LLM_TIMEOUT_MS`（可选，默认 `8000`）：调用超时毫秒数。
+- `SPEC_LLM_MAX_ATTEMPTS`（可选，默认 `3`）：失败重试次数上限。
 
 ## 6. 命令设计与执行流程
 
@@ -133,7 +140,7 @@ zod Schema（语义）：
 
 - 目的：交互式创建 `spec.config.json`。
 - 自动探测：`docs/` 是否存在；常见测试目录（`tests/`、`src/**/__tests__/`）；测试扩展名（扫描现有 `*.test.*` 或 `*.spec.*`）。
-- 交互项（@clack/prompts）：docsDir、docTemplates（默认三项且均为空白）、testsDir、testFileExt、branchFormat、defaultMergeTarget、llm.model。
+- 交互项（@clack/prompts）：docsDir、docTemplates（默认三项且均为空白）、testsDir、testFileExt、branchFormat、defaultMergeTarget。
 - 校验与落盘：使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
 
 ### 6.2 spec create <description>
@@ -216,7 +223,9 @@ zod Schema（语义）：
 ### 7.3 网络与超时
 
 - 通过 LangChain 设置请求超时（默认 8s）与调用层重试策略（指数退避，最多 2 次）。
-- 不记录或回显 API Key；支持通过环境变量 `OPENAI_API_KEY`，可选 `OPENAI_BASE_URL`。
+- 不记录或回显 API Key；支持通过环境变量：
+  - `OPENAI_API_KEY`（必需）、`OPENAI_BASE_URL`（可选）；
+  - `SPEC_OPENAI_MODEL`、`SPEC_LLM_TIMEOUT_MS`、`SPEC_LLM_MAX_ATTEMPTS`（可选，见 §5.2）。
 
 ## 8. Git 适配与预检
 
