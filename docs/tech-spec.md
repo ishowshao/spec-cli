@@ -96,7 +96,7 @@ zod Schema（语义）：
   testFileExt?: string,            # 自动探测，例：".test.ts"
   branchFormat: string,            # 默认 "feature-{slug}"
   defaultMergeTarget: string,      # 默认 "main"
-  mergeStrategy: "merge"|"squash",            # 默认 "merge"（不支持 rebase）
+  // 合并方式固定为普通 merge（不支持 rebase/squash），因此不提供 mergeStrategy 配置项
   llm: {
     provider: "openai",
     model: string,                 # 默认 "gpt-4o-mini"
@@ -117,7 +117,7 @@ zod Schema（语义）：
   "testFileExt": ".test.ts",
   "branchFormat": "feature-{slug}",
   "defaultMergeTarget": "main",
-  "mergeStrategy": "merge",
+  
   "llm": {
     "provider": "openai",
     "model": "gpt-4o-mini",
@@ -133,7 +133,7 @@ zod Schema（语义）：
 
 - 目的：交互式创建 `spec.config.json`。
 - 自动探测：`docs/` 是否存在；常见测试目录（`tests/`、`src/**/__tests__/`）；测试扩展名（扫描现有 `*.test.*` 或 `*.spec.*`）。
-- 交互项（@clack/prompts）：docsDir、docTemplates（默认三项且均为空白）、testsDir、testFileExt、branchFormat、defaultMergeTarget、mergeStrategy、llm.model。
+- 交互项（@clack/prompts）：docsDir、docTemplates（默认三项且均为空白）、testsDir、testFileExt、branchFormat、defaultMergeTarget、llm.model。
 - 校验与落盘：使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
 
 ### 6.2 spec create <description>
@@ -176,9 +176,7 @@ zod Schema（语义）：
   - 可选：提示未推送的提交。
 - 执行：
   - `git switch {target}` → `git pull`；
-  - 根据 `mergeStrategy`：
-    - merge：`git merge --no-ff {feature}`
-    - squash：`git merge --squash {feature}` → `git commit`
+  - 进行普通合并：`git merge --no-ff {feature}`；
   - 合并成功后自动 `git push` 目标分支（无冲突即推送）；默认不删除 feature 分支。
 - 冲突处理：打印步骤提示并以非零码退出，保留当前状态供用户解决。
 
@@ -255,7 +253,7 @@ zod Schema（语义）：
 - config：加载/默认值回填/非法配置报错。
 - preflight：仓库检测、工作区清洁度解析、错误映射。
 - slug：响应解析、正则校验、违规反馈拼接、重试上限逻辑、唯一性冲突处理。
-- git 参数构造：merge/squash 的命令拼装（不包含 rebase）。
+- git 参数构造：普通 merge 的命令拼装（不包含 squash/rebase）。
 
 ### 10.3 集成测试（E2E）
 
@@ -265,7 +263,7 @@ zod Schema（语义）：
   - 新建分支并提交；
   - 冲突与不合规返回路径验证（借助 FakeLlmClient 注入不同响应）。
 - `spec list`：基于 docs 目录正确枚举。
-- `spec merge`：在无冲突条件下三种策略执行路径正确；冲突路径仅断言提示信息。
+- `spec merge`：在无冲突条件下普通 merge 执行路径正确；冲突路径仅断言提示信息。
 
 ## 11. 构建与发布
 

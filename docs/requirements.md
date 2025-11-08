@@ -140,7 +140,7 @@ spec merge <feature-slug>
 
 **行为要求**：
 - 不自动删除 feature 分支
-- 合并方式可配置（merge/squash），不支持 rebase
+- 合并方式不可配置，仅支持普通 merge（不支持 squash/rebase）
 - 合并前默认已执行 `git pull` 目标分支；合并成功后自动 `git push`
 - 提供清晰的合并状态反馈
 
