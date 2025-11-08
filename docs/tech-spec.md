@@ -158,34 +158,44 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
     - `docs/{slug}/` 不存在；
     - `git show-ref --verify refs/heads/feature-{slug}` 不存在（或按 `branchFormat` 展开）。
     - 冲突则将“slug 已占用”的事实反馈给 LLM 请求替代 slug，直至达到重试上限。
-- 执行：
-  - 创建目录：`{docsDir}/{slug}/`。
-  - 在该目录下生成空白文件：按 `docTemplates` 列表创建（内容为空）。
+- 执行（顺序保证不污染主分支）：
+  - 先创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。若分支创建/切换失败，立即退出，不进行任何文件写入。
+  - 在该新分支内创建目录：`{docsDir}/{slug}/`。
+  - 在目录下生成空白文件：按 `docTemplates` 列表创建（内容为空）。
   - 若配置了 `testsDir` 与 `testFileExt`，依据项目结构自动选择层级创建测试文件：
     - 若存在 `tests/e2e/`，则在 `tests/e2e/{slug}{testFileExt}` 创建；
     - 若存在 `__tests__/` 或 `tests/unit/`，则在对应目录下创建；
     - 否则在 `{testsDir}/{slug}{testFileExt}` 创建；
     - 仅作为占位文件，不强制绑定特定框架命名习惯。
-  - 创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。
   - 初始提交：`git add` → `git commit -m "feat({slug}): scaffold feature structure"`。
-- 输出：展示 slug、分支名、创建的路径；遇错给出明确恢复建议。
+- 输出：展示 slug、分支名、创建的路径；遇错给出明确恢复建议（所有变更均在 feature 分支内，主分支不受影响）。
 
 ### 6.3 spec list
 
 - 数据源：仅基于 `{docsDir}` 下的一级子目录名；仅输出满足 slug 正则的目录名（MVP 不对分支做并集/去重）。
+- 输出与排序：仅输出 slug，本行一个；按字母序（ASCII，升序，区分大小写但 slug 约定为小写）排序后打印，确保结果稳定且与需求一致。
 
 ### 6.4 spec merge <feature-slug>
 
-- 预检：
-  - 目标分支存在（`defaultMergeTarget`）；
+- 预检（含远程健壮性）：
+  - 固定远程名（MVP）：`origin`。
   - 工作区干净；
-  - feature 分支存在；
-  - 可选：提示未推送的提交。
+  - feature 分支存在（本地）；
+  - 目标分支 `target = defaultMergeTarget`：
+    - 远程存在性：`git ls-remote --heads origin {target}` 成功，否则以错误码 5 退出（提示“目标分支不存在于远程”）。
+    - 本地存在性：
+      - 若本地不存在：`git fetch origin {target}` 后，`git switch -c {target} --track origin/{target}` 创建并跟踪；失败则以 5 退出。
+      - 若本地存在但未设置 upstream：`git branch --set-upstream-to origin/{target} {target}`；失败以 5 退出。
 - 执行：
-  - `git switch {target}` → `git pull`；
-  - 进行普通合并：`git merge --no-ff {feature}`；
-  - 合并成功后自动 `git push` 目标分支（无冲突即推送）；默认不删除 feature 分支。
-- 冲突处理：打印步骤提示并以非零码退出，保留当前状态供用户解决。
+  - `git fetch origin`（刷新远程引用）；
+  - `git switch {target}`（已确保有 upstream）；
+  - `git -c pull.rebase=false pull --ff-only`（避免受用户全局 rebase 配置影响，且只允许快进更新，否则以 5 退出并给出提示）。
+  - 普通合并：`git merge --no-ff {feature}`；
+  - 合并成功后自动推送：`git push`（已设置 upstream，若被远程拒绝则以 5 退出并提示可能为竞态更新，建议重试前先 `git fetch && git pull --ff-only`）。
+- 冲突与失败处理：
+  - 合并产生冲突：打印解决步骤并以非零码退出，不执行推送；
+  - `pull --ff-only` 失败：提示本地目标分支存在未推送/额外提交，要求处理后重试；
+  - `push` 被拒绝：提示远程有新提交产生竞态，建议重新 `pull --ff-only` 后再次执行 `spec merge`。
 
 ## 7. LLM 集成与 slug 规范
 
@@ -233,8 +243,12 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - `getRepoRoot()`：通过 `git rev-parse --show-toplevel` 判定；
   - `isClean()`：`git status --porcelain`；
   - `branchExists(name)`：`git show-ref --verify refs/heads/{name}`；
-  - `switch/create/commit/merge/pull` 等封装，失败返回结构化错误（含 `hint`）。
-- 安全原则：在任一步失败前不写入任何文件、不创建分支（原子性）。
+  - `getUpstream(branch)`：解析 `@{u}`，判断是否已设置 upstream；
+  - `ensureTracking(target, remote="origin")`：
+    - 若远程 `origin/{target}` 存在且本地不存在，创建并跟踪；
+    - 若本地存在但无 upstream，设置 `origin/{target}` 为 upstream；
+  - `switch/create/commit/merge/pull/push` 等封装，失败返回结构化错误（含 `hint`）。
+- 安全原则（分支先行，写入隔离）：在通过预检后，先创建并切换到 feature 分支；任何文件写入仅发生在该分支内。任一步失败时主分支不受影响（原子性/隔离）。
 
 ## 9. 日志、错误与退出码
 
@@ -271,7 +285,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 生成 `docs/{slug}/` 与空白模板；
   - 新建分支并提交；
   - 冲突与不合规返回路径验证（借助 FakeLlmClient 注入不同响应）。
-- `spec list`：基于 docs 目录正确枚举。
+- `spec list`：基于 docs 目录正确枚举；断言输出按字母序（ASCII 升序）排序且仅包含 slug 文本。
 - `spec merge`：在无冲突条件下普通 merge 执行路径正确；冲突路径仅断言提示信息。
 
 ## 11. 构建与发布
@@ -320,5 +334,3 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 - 跨平台命令行：统一通过 `execa` 执行 Git；路径拼接使用 Node 官方 `path` API。
 - 输出语言：MVP 使用英文/中文简洁提示；后续可抽象 i18n。
-
-
