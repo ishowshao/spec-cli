@@ -195,30 +195,27 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 ### 6.4 spec merge <feature-slug>
 
-- 预检（含远程健壮性）：
-  - 解析远程名 R（不硬编码）：
-    - 若目标分支 `target` 已设置 upstream，取其远程作为 R；
-    - 否则读取 `git remote`：
-      - 若仅有一个远程，取该远程为 R；
-      - 若有多个远程且无 upstream，直接失败（码 5），提示用户为 `target` 设置 upstream（示例：`git push -u <remote> {target}` 或 `git branch --set-upstream-to <remote>/{target} {target}`）。
-  - 工作区干净；
-  - feature 分支存在（本地）；
-  - 目标分支 `target = defaultMergeTarget`：
-    - 远程存在性：`git ls-remote --heads {R} {target}` 成功，否则以错误码 5 退出（提示“远程不存在该目标分支”）。
-    - 本地存在性：
-      - 若本地不存在：`git fetch {R} {target}` 后，`git switch -c {target} --track {R}/{target}` 创建并跟踪；失败则以 5 退出。
-      - 若本地存在但未设置 upstream：`git branch --set-upstream-to {R}/{target} {target}`；失败以 5 退出。
-- 执行：
-  - `git fetch {R}`（刷新远程引用）；
-  - `git switch {target}`（已确保有 upstream）；
-  - 优先快进拉取：`git -c pull.rebase=false pull --ff-only`（避免受用户全局 rebase 配置影响）。
-  - 若因“非快进”导致失败（fast-forward not possible），自动回退为普通拉取：`git -c pull.rebase=false pull`，将远端更新合入本地 `target` 后继续；其它错误（网络/认证等）以 5 退出并给出提示。
-  - 普通合并：`git merge --no-ff {feature}`；
-  - 合并成功后自动推送：`git push`（已设置 upstream；若被远程拒绝则以 5 退出并提示远端存在新的更新，建议重新执行本流程：fetch → ff-only → 必要时回退到普通 pull → 合并 → 推送）。
-- 冲突与失败处理：
-  - 合并产生冲突（`git merge --no-ff {feature}`）：打印解决步骤并以非零码退出，不执行推送；
-  - 回退为普通 `git pull` 时若产生冲突：提示先在 `target` 上解决并提交冲突，然后重新执行 `spec merge`；
-  - `push` 被拒绝：提示远端有新提交产生竞态，建议重新执行合并流程（将再次经历 fetch → ff-only → 必要时回退到普通 pull → 合并 → 推送）。
+- 目标：用最小且可预测的 Git 指令完成合并；不做远程解析、不创建/设置 upstream、不做自动回退。
+
+- 预检（最小化）：
+  - 在 Git 仓库内；工作区干净。
+  - feature 分支存在（本地）。feature 分支名由 `branchFormat` 将 `<feature-slug>` 展开为 `{featureBranch}`；若找不到分支，直接失败（码 5）。
+  - 目标分支本地存在：`target = defaultMergeTarget`。若本地不存在，直接失败（码 5），提示用户手动创建或设置 upstream（提供示例命令），但不自动执行。
+
+- 执行顺序（固定四步）：
+  1) `git switch {target}`
+  2) `git pull`
+  3) `git merge --no-ff {featureBranch}`
+  4) `git push`
+
+- 失败处理（不做自动修复，立即交还控制权）：
+  - 任一步失败即以错误码 5 退出，并原样回显 Git 错误信息；不再尝试 `--ff-only`、额外 `fetch`、或自动设置 upstream。
+  - 合并冲突：提示冲突文件与解决步骤（手动解决 → 提交 → 重新运行 `spec merge`），不执行 `git push`。
+  - `pull/push` 因未设置 upstream 失败：仅给出示例命令（例如 `git push -u <remote> {target}` 或 `git branch --set-upstream-to <remote>/{target} {target}`），不自动修改任何配置。
+  - 绝不删除 feature 分支；合并方式固定为普通 merge（`--no-ff`），不可配置。
+
+- 输出：
+  - 在 `--verbose` 下逐条回显将执行的四条命令；成功后打印合并提交哈希与已推送的远程（若存在 upstream）。
 
 ## 7. LLM 集成与 slug 规范
 
