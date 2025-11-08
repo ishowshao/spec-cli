@@ -303,7 +303,6 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   "type": "module",
   "bin": { "spec": "dist/cli.js" },
   "engines": { "node": ">=22" },
-  "files": ["dist", "templates", "README.md", "LICENSE"],
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
@@ -311,21 +310,6 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"
-  },
-  "dependencies": {
-    "@clack/prompts": "^0.7.0",
-    "@langchain/core": "^0.2.0",
-    "@langchain/openai": "^0.2.0",
-    "commander": "^12.0.0",
-    "execa": "^9.0.0",
-    "zod": "^3.23.0"
-  },
-  "devDependencies": {
-    "rimraf": "^5.0.0",
-    "tempy": "^3.1.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.6.0",
-    "vitest": "^2.0.0"
   }
 }
 ```
@@ -337,23 +321,4 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 - 跨平台命令行：统一通过 `execa` 执行 Git；路径拼接使用 Node 官方 `path` API。
 - 输出语言：MVP 使用英文/中文简洁提示；后续可抽象 i18n。
 
-## 13. 安全与隐私
 
-- 从不打印或持久化 `OPENAI_API_KEY`；
-- 对错误日志做敏感字段清洗；
-- `spec create` 仅创建新目录/文件与分支；`spec merge` 仅通过 Git 合并导致的变更；
-- 所有写入前均通过预检，失败即中止。
-
-## 14. 风险与缓解
-
-- LLM 不稳定或配额不足 → 限定温度 0、严格 Prompt、带原因重试、明确错误提示。
-- 多语言转写质量参差 → 在 Prompt 中强调“转写为拉丁字母”，并在测试 Fake 中覆盖中/日/俄/emoji 等形状用例。
-- 仅 `tsc` 发布导致产物分散 → 通过 `files` 白名单控制体积，并提供 source map 便于定位问题。
-- 用户工作区不干净 → 在 create/merge 前强制检查并提示用户提交/暂存。
-
-## 15. 后续扩展（非 MVP）
-
-- `spec delete/status` 等新命令；
-- 模板管理与变量渲染；
-- 团队协作与远程工作流（PR 自动化、保护分支策略）；
-- 多 Provider LLM 适配（OpenRouter、Azure OpenAI 等）。
