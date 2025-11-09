@@ -14,13 +14,14 @@ export function loadConfig(repoRoot: string): Config {
 
     try {
         const content = readFileSync(configPath, 'utf-8')
-        const raw = JSON.parse(content)
+        const raw = JSON.parse(content) as unknown
         return ConfigSchema.parse(raw)
     } catch (error) {
         if (error instanceof z.ZodError) {
             throw new Error(`Invalid configuration: ${error.errors.map((e) => e.message).join(', ')}`)
         }
-        throw new Error(`Failed to load configuration: ${error}`)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        throw new Error(`Failed to load configuration: ${errorMessage}`)
     }
 }
 

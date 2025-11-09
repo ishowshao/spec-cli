@@ -51,7 +51,14 @@ const tsStrictForTests = scope(tseslint.configs['flat/strict'], [
 export default [
   // Global ignores (do not ignore tests so that they are linted)
   {
-    ignores: ['dist/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      '**/*.config.js',
+      '**/*.config.ts',
+      '**/*.d.ts.map',
+    ],
   },
 
   // Apply strict + type-checked rules to src/**

@@ -21,19 +21,22 @@ export async function listCommand(): Promise<void> {
                 .map((entry) => entry.name)
                 .sort()
 
-            slugs.forEach((slug) => console.log(slug))
-        } catch (error: any) {
-            if (error.code === 'ENOENT') {
+            slugs.forEach((slug) => {
+                console.log(slug)
+            })
+        } catch (error: unknown) {
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
                 // Docs directory doesn't exist, no features yet
                 return
             }
             throw error
         }
-    } catch (error: any) {
-        logger.error(`Failed to list features: ${error.message}`)
-        if (error.message.includes('config') || error.message.includes('Configuration')) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        logger.error(`Failed to list features: ${errorMessage}`)
+        if (errorMessage.includes('config') || errorMessage.includes('Configuration')) {
             process.exit(ExitCodes.CONFIG_ERROR)
-        } else if (error.message.includes('repository')) {
+        } else if (errorMessage.includes('repository')) {
             process.exit(ExitCodes.PRECHECK_FAILED)
         } else {
             process.exit(ExitCodes.UNKNOWN_ERROR)

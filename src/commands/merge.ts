@@ -2,7 +2,7 @@ import { loadConfig } from '../core/config.js'
 import { getRepoRoot, preflightMerge } from '../core/preflight.js'
 import { gitSwitch, gitPull, gitMerge, gitPush, getUpstream } from '../core/git.js'
 import { logger } from '../core/logger.js'
-import { ExitCodes } from '../types.js'
+import { ExitCodes, GitOperationError } from '../types.js'
 import * as p from '@clack/prompts'
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -65,26 +65,29 @@ export async function mergeCommand(featureSlug: string, verbose = false): Promis
         }
 
         p.outro(`Feature '${featureSlug}' has been merged to '${targetBranch}'.`)
-    } catch (error: any) {
+    } catch (error: unknown) {
         spinner.stop('Failed to merge feature')
 
-        if (error.code === 'MERGE_FAILED') {
-            p.log.error('Merge conflicts detected.')
-            p.log.info('Please resolve conflicts manually:')
-            p.log.info('  1. Fix conflicts in the affected files')
-            p.log.info('  2. Run: git add <resolved-files>')
-            p.log.info('  3. Run: git commit')
-            p.log.info('  4. Run: git push')
-            process.exit(ExitCodes.GIT_ERROR)
-        } else if (error.code === 'PULL_FAILED' || error.code === 'PUSH_FAILED') {
-            p.log.error(error.message)
-            if (error.hint) {
-                p.log.info(error.hint)
+        if (error instanceof GitOperationError) {
+            if (error.code === 'MERGE_FAILED') {
+                p.log.error('Merge conflicts detected.')
+                p.log.info('Please resolve conflicts manually:')
+                p.log.info('  1. Fix conflicts in the affected files')
+                p.log.info('  2. Run: git add <resolved-files>')
+                p.log.info('  3. Run: git commit')
+                p.log.info('  4. Run: git push')
+                process.exit(ExitCodes.GIT_ERROR)
+            } else if (error.code === 'PULL_FAILED' || error.code === 'PUSH_FAILED') {
+                p.log.error(error.message)
+                if (error.hint) {
+                    p.log.info(error.hint)
+                }
+                process.exit(ExitCodes.GIT_ERROR)
             }
-            process.exit(ExitCodes.GIT_ERROR)
-        } else {
-            p.log.error(error.message)
-            process.exit(ExitCodes.GIT_ERROR)
         }
+
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        p.log.error(errorMessage)
+        process.exit(ExitCodes.GIT_ERROR)
     }
 }

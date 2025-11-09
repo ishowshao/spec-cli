@@ -8,16 +8,21 @@ import * as p from '@clack/prompts'
 import { ConfigSchema } from '../types.js'
 import { ExitCodes } from '../types.js'
 
+interface PackageJson {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+}
+
 async function detectTestFrameworks(repoRoot: string): Promise<string[]> {
     const candidates: string[] = []
     const packageJsonPath = join(repoRoot, 'package.json')
     let hasPackageJson = false
-    let packageJson: any = {}
+    let packageJson: PackageJson = {}
 
     if (existsSync(packageJsonPath)) {
         try {
             const content = readFileSync(packageJsonPath, 'utf-8')
-            packageJson = JSON.parse(content)
+            packageJson = JSON.parse(content) as PackageJson
             hasPackageJson = true
         } catch {
             // Ignore
@@ -161,7 +166,7 @@ export async function initCommand(): Promise<void> {
             handleCancel(selected)
 
             if (Array.isArray(selected)) {
-                scaffoldPaths = selected as string[]
+                scaffoldPaths = selected
             }
         }
 
@@ -227,7 +232,7 @@ export async function initCommand(): Promise<void> {
 
         let docTemplates: string[] = []
         if (Array.isArray(docTemplatesResult)) {
-            docTemplates = docTemplatesResult as string[]
+            docTemplates = docTemplatesResult
         } else {
             docTemplates = defaultDocTemplates
         }
@@ -291,14 +296,14 @@ export async function initCommand(): Promise<void> {
         // Ensure at least one template
         if (docTemplates.length === 0) {
             p.log.warn('No templates selected, using default')
-            docTemplates = defaultDocTemplates
+            docTemplates = [...defaultDocTemplates]
         }
 
         const config = {
             schemaVersion: 1,
             docsDir,
             docTemplates,
-            scaffoldPaths: scaffoldPaths || [],
+            scaffoldPaths,
             branchFormat,
             defaultMergeTarget,
         }
@@ -310,11 +315,12 @@ export async function initCommand(): Promise<void> {
         writeFileSync(configPath, JSON.stringify(validated, null, 2), 'utf-8')
 
         p.outro(`Configuration saved to ${configPath}`)
-    } catch (error: any) {
-        p.cancel(`Failed to initialize: ${error.message}`)
-        if (error.message.includes('repository')) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        p.cancel(`Failed to initialize: ${errorMessage}`)
+        if (errorMessage.includes('repository')) {
             process.exit(ExitCodes.PRECHECK_FAILED)
-        } else if (error.message.includes('config') || error.message.includes('Configuration')) {
+        } else if (errorMessage.includes('config') || errorMessage.includes('Configuration')) {
             process.exit(ExitCodes.CONFIG_ERROR)
         } else {
             process.exit(ExitCodes.UNKNOWN_ERROR)

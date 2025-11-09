@@ -73,7 +73,7 @@ export async function createCommand(description: string): Promise<void> {
             }
 
             // Check scaffold paths don't conflict
-            const validation = validateScaffoldPaths(repoRoot, config.scaffoldPaths || [], candidate)
+            const validation = validateScaffoldPaths(repoRoot, config.scaffoldPaths, candidate)
             if (!validation.valid) {
                 existingSlugs.push(candidate)
                 continue
@@ -100,7 +100,7 @@ export async function createCommand(description: string): Promise<void> {
         spinner.message('Creating scaffold paths...')
 
         // Create scaffold paths
-        const scaffoldFiles = await createScaffoldPaths(repoRoot, config.scaffoldPaths || [], slug)
+        const scaffoldFiles = await createScaffoldPaths(repoRoot, config.scaffoldPaths, slug)
 
         spinner.message('Committing initial structure...')
 
@@ -114,30 +114,27 @@ export async function createCommand(description: string): Promise<void> {
 
         p.log.success(`Feature slug: ${slug}`)
         p.log.success(`Branch: ${branchName}`)
-        p.log.info(`Created ${docFiles.length} documentation files`)
-        p.log.info(`Created ${scaffoldFiles.length} scaffold paths`)
+        p.log.info(`Created ${String(docFiles.length)} documentation files`)
+        p.log.info(`Created ${String(scaffoldFiles.length)} scaffold paths`)
 
         p.outro('You can now start developing your feature.')
-    } catch (error: any) {
+    } catch (error: unknown) {
         spinner.stop('Failed to create feature')
-        p.log.error(error.message)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        p.log.error(errorMessage)
 
         // Determine exit code based on error type
-        if (
-            error.message.includes('OPENAI_API_KEY') ||
-            error.message.includes('LLM') ||
-            error.message.includes('slug')
-        ) {
+        if (errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('LLM') || errorMessage.includes('slug')) {
             process.exit(ExitCodes.LLM_ERROR)
-        } else if (error.message.includes('config') || error.message.includes('Configuration')) {
+        } else if (errorMessage.includes('config') || errorMessage.includes('Configuration')) {
             process.exit(ExitCodes.CONFIG_ERROR)
         } else if (
-            error.message.includes('Git') ||
-            error.message.includes('branch') ||
-            error.message.includes('working tree')
+            errorMessage.includes('Git') ||
+            errorMessage.includes('branch') ||
+            errorMessage.includes('working tree')
         ) {
             process.exit(ExitCodes.GIT_ERROR)
-        } else if (error.message.includes('repository') || error.message.includes('clean')) {
+        } else if (errorMessage.includes('repository') || errorMessage.includes('clean')) {
             process.exit(ExitCodes.PRECHECK_FAILED)
         } else {
             process.exit(ExitCodes.UNKNOWN_ERROR)

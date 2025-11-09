@@ -35,6 +35,18 @@ export interface GitError {
     hint?: string
 }
 
+export class GitOperationError extends Error {
+    code: string
+    hint?: string
+
+    constructor(gitError: GitError) {
+        super(gitError.message)
+        this.name = 'GitOperationError'
+        this.code = gitError.code
+        this.hint = gitError.hint
+    }
+}
+
 export const ExitCodes = {
     SUCCESS: 0,
     CONFIG_ERROR: 2,

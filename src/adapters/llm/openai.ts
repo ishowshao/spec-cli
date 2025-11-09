@@ -82,7 +82,7 @@ export class OpenAILlmClient implements LlmClient {
                 }
 
                 if (slug.length > MAX_SLUG_LENGTH) {
-                    lastError = `Too long: slug must be ${MAX_SLUG_LENGTH} characters or less (got ${slug.length})`
+                    lastError = `Too long: slug must be ${String(MAX_SLUG_LENGTH)} characters or less (got ${String(slug.length)})`
                     continue
                 }
 
@@ -93,18 +93,21 @@ export class OpenAILlmClient implements LlmClient {
                 }
 
                 return slug
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error'
                 if (attempt >= this.maxAttempts) {
-                    throw new Error(`Failed to generate slug after ${this.maxAttempts} attempts: ${error.message}`)
+                    throw new Error(
+                        `Failed to generate slug after ${String(this.maxAttempts)} attempts: ${errorMessage}`
+                    )
                 }
-                lastError = error.message || 'Unknown error'
+                lastError = errorMessage
                 // Exponential backoff
                 await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 100))
             }
         }
 
         throw new Error(
-            `Failed to generate valid slug after ${this.maxAttempts} attempts${lastError ? `: ${lastError}` : ''}`
+            `Failed to generate valid slug after ${String(this.maxAttempts)} attempts${lastError ? `: ${lastError}` : ''}`
         )
     }
 }
