@@ -137,8 +137,8 @@ zod Schema（语义）：
 
 LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓库的 `spec.config.json`。
 
-- `OPENAI_API_KEY`（必需）：OpenAI API Key。
-- `OPENAI_BASE_URL`（可选）：自定义 API Base URL。
+- `SPEC_OPENAI_API_KEY`（必需）：OpenAI API Key。
+- `SPEC_OPENAI_BASE_URL`（可选）：自定义 API Base URL。
 - `SPEC_OPENAI_MODEL`（可选，默认 `gpt-5-mini`）：模型名。
 - `SPEC_LLM_TIMEOUT_MS`（可选，默认 `8000`）：调用超时毫秒数。
 - `SPEC_LLM_MAX_ATTEMPTS`（可选，默认 `3`）：失败重试次数上限。
@@ -188,7 +188,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 在 Git 仓库内（`git rev-parse --show-toplevel` 成功）。
   - 工作区干净（`git status --porcelain` 为空）。
   - 读取配置成功并通过 zod 校验。
-  - `OPENAI_API_KEY` 存在；网络可连通（可选小请求探测）。
+  - `SPEC_OPENAI_API_KEY` 存在；网络可连通（可选小请求探测）。
 - 生成 slug（仅 LLM）：
   - 使用 LangChain(OpenAI) 调用，使用默认温度设置；严格 Prompt（见 §7）。
   - 本地正则验证：`^[a-z0-9]+(?:-[a-z0-9]+)*$` 且长度 ≤ 50。
@@ -257,7 +257,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 - 通过 LangChain 设置请求超时（默认 8s）与调用层重试策略（指数退避，最多 2 次）。
 - 不记录或回显 API Key；支持通过环境变量：
-  - `OPENAI_API_KEY`（必需）、`OPENAI_BASE_URL`（可选）；
+  - `SPEC_OPENAI_API_KEY`（必需）、`SPEC_OPENAI_BASE_URL`（可选）；
   - `SPEC_OPENAI_MODEL`、`SPEC_LLM_TIMEOUT_MS`、`SPEC_LLM_MAX_ATTEMPTS`（可选，见 §5.2）。
 
 ## 8. Git 适配与预检
@@ -365,7 +365,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 跨语言一致的转写规则与分词风格，避免人工随意命名导致的不可比性；
   - 与分支命名、提交信息中的 `{slug}` 保持一致，减少人为偏差；
   - 后续可复用同一套生成策略扩展到更多需要规范化命名/标签的场景（不仅是 slug）。
-- 取舍结论：MVP 阶段不提供 `--slug` 手工覆盖，也不提供离线模式。`spec create` 依赖 LLM 成功返回才会继续执行（详见 §6.2、§7）。当网络/配额/模型暂不可用时，命令以退出码 4 失败并给出明确提示与恢复建议（检查 `OPENAI_API_KEY`、网络、稍后重试）。
+- 取舍结论：MVP 阶段不提供 `--slug` 手工覆盖，也不提供离线模式。`spec create` 依赖 LLM 成功返回才会继续执行（详见 §6.2、§7）。当网络/配额/模型暂不可用时，命令以退出码 4 失败并给出明确提示与恢复建议（检查 `SPEC_OPENAI_API_KEY`、网络、稍后重试）。
 
 ### 13.2 保留 LangChain 作为 LLM 适配层
 
@@ -380,7 +380,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 ### 13.3 可用性与可恢复性的边界
 
 - 本工具将 LLM 视为“硬依赖”，不做“LLM 不可用时仍能完成 `spec create`”的假设。对应的工程缓解措施为：
-  - 预检阶段尽早失败：校验 `OPENAI_API_KEY` 是否存在，必要时进行最小连通性检查（可配置），以减少在写入阶段才失败的概率（见 §6.2、§7.3）。
+  - 预检阶段尽早失败：校验 `SPEC_OPENAI_API_KEY` 是否存在，必要时进行最小连通性检查（可配置），以减少在写入阶段才失败的概率（见 §6.2、§7.3）。
   - 明确失败语义：LLM 相关失败统一返回退出码 4，并附带可操作的恢复建议；
   - 验证与重试：严格正则校验 + 违规原因回传 + 有上限的重试（见 §7.2）。
 - 测试与可维护性：通过依赖注入在测试中提供 `FakeLlmClient`，保证测试不依赖网络且可稳定复现（见 §10）。

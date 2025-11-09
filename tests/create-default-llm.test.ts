@@ -32,7 +32,7 @@ const saveEnv = { ...process.env }
 
 beforeEach(() => {
   vi.resetModules()
-  process.env = { ...saveEnv, OPENAI_API_KEY: 'test-key' }
+  process.env = { ...saveEnv, SPEC_OPENAI_API_KEY: 'test-key' }
   invokeImpl = async () => ({ content: 'def-slug' })
   structuredInvokeImpl = async () => ({ slug: 'def-slug' })
 })
