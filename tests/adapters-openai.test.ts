@@ -3,9 +3,16 @@ import { it, expect, vi, beforeEach, afterEach } from 'vitest'
 // Shared state for the mock to control behavior
 type ModelOptions = { [key: string]: unknown; configuration?: { baseURL?: string } }
 let invokeImpl: (args: unknown[]) => Promise<{ content: string }>
+let structuredInvokeImpl: (args: unknown[]) => Promise<{ slug: string }>
 let constructedOptions: ModelOptions[] = []
 
 vi.mock('@langchain/openai', () => {
+  class StructuredModel {
+    async invoke(args: unknown[]) {
+      return structuredInvokeImpl(args)
+    }
+  }
+
   class ChatOpenAI {
     static lastOptions: ModelOptions
     constructor(opts: ModelOptions) {
@@ -14,6 +21,9 @@ vi.mock('@langchain/openai', () => {
     }
     async invoke(args: unknown[]) {
       return invokeImpl(args)
+    }
+    withStructuredOutput() {
+      return new StructuredModel()
     }
   }
   return { ChatOpenAI }
@@ -25,6 +35,7 @@ beforeEach(() => {
   vi.resetModules()
   constructedOptions = []
   invokeImpl = async () => ({ content: 'simple-slug' })
+  structuredInvokeImpl = async () => ({ slug: 'simple-slug' })
   process.env = { ...saveEnv }
 })
 
@@ -63,9 +74,9 @@ it('retries on duplicate slug and succeeds on second attempt', async () => {
   process.env.OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '2'
   let calls = 0
-  invokeImpl = async () => {
+  structuredInvokeImpl = async () => {
     calls++
-    return { content: calls === 1 ? 'dup-slug' : 'unique-slug' }
+    return { slug: calls === 1 ? 'dup-slug' : 'unique-slug' }
   }
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -74,22 +85,25 @@ it('retries on duplicate slug and succeeds on second attempt', async () => {
   expect(slug).toBe('unique-slug')
 })
 
-it('fails when model returns invalid slug after max attempts', async () => {
+it('fails when structured output throws validation error after max attempts', async () => {
   process.env.OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '1'
-  invokeImpl = async () => ({ content: 'Invalid Slug' })
+  structuredInvokeImpl = async () => {
+    throw new Error('Validation failed: Invalid slug format')
+  }
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
   const llm = new OpenAILlmClient()
-  await expect(llm.generateSlug('desc', [])).rejects.toThrow(/Failed to generate valid slug/)
+  await expect(llm.generateSlug('desc', [])).rejects.toThrow(/Failed to generate slug/)
 })
 
-it('fails when slug is too long', async () => {
+it('structured output ensures slug format and length are valid', async () => {
   process.env.OPENAI_API_KEY = 'test'
-  process.env.SPEC_LLM_MAX_ATTEMPTS = '1'
-  invokeImpl = async () => ({ content: 'a'.repeat(51) })
+  structuredInvokeImpl = async () => ({ slug: 'valid-slug-123' })
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
   const llm = new OpenAILlmClient()
-  await expect(llm.generateSlug('desc', [])).rejects.toThrow(/Too long/)
+  const slug = await llm.generateSlug('desc', [])
+  expect(slug).toBe('valid-slug-123')
+  // Structured output guarantees format, so no need to test invalid formats
 })

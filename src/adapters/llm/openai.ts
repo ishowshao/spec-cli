@@ -1,9 +1,18 @@
 import { ChatOpenAI } from '@langchain/openai'
 import { HumanMessage } from '@langchain/core/messages'
+import { z } from 'zod'
 import type { LlmClient } from '../../types.js'
 
-const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const MAX_SLUG_LENGTH = 50
+
+// Zod schema for structured output
+const SlugSchema = z.object({
+    slug: z
+        .string()
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be kebab-case with only lowercase letters, numbers, and hyphens')
+        .max(MAX_SLUG_LENGTH, `Slug must be ${String(MAX_SLUG_LENGTH)} characters or less`)
+        .describe('A kebab-case slug (lowercase letters, numbers, and hyphens)'),
+})
 
 const DEFAULT_PROMPT = `Generate a kebab-case slug (lowercase letters, numbers, and hyphens) from the following description. The slug should be:
 - Maximum 50 characters
@@ -13,12 +22,11 @@ const DEFAULT_PROMPT = `Generate a kebab-case slug (lowercase letters, numbers, 
 
 Description: {description}
 
-{existingContext}
-
-Return only the slug itself, nothing else.`
+{existingContext}`
 
 export class OpenAILlmClient implements LlmClient {
     private client: ChatOpenAI
+    private structuredModel: ReturnType<ChatOpenAI['withStructuredOutput']>
     private maxAttempts: number
     private timeout: number
 
@@ -46,6 +54,9 @@ export class OpenAILlmClient implements LlmClient {
             temperature: 0,
         })
 
+        // Create structured output model with Zod schema
+        this.structuredModel = this.client.withStructuredOutput(SlugSchema)
+
         this.maxAttempts = maxAttempts
         this.timeout = timeoutMs
     }
@@ -72,21 +83,11 @@ export class OpenAILlmClient implements LlmClient {
                     prompt += `\n\nPrevious attempt failed: ${lastError}. Please correct the slug according to the requirements.`
                 }
 
-                const response = await this.client.invoke([new HumanMessage(prompt)])
-                const slug = (response.content as string).trim()
+                // Use structured output - format is guaranteed by schema
+                const result = await this.structuredModel.invoke([new HumanMessage(prompt)])
+                const slug = result.slug
 
-                // Validate slug format
-                if (!SLUG_REGEX.test(slug)) {
-                    lastError = `Invalid format: slug must match pattern [a-z0-9]+(?:-[a-z0-9]+)*`
-                    continue
-                }
-
-                if (slug.length > MAX_SLUG_LENGTH) {
-                    lastError = `Too long: slug must be ${String(MAX_SLUG_LENGTH)} characters or less (got ${String(slug.length)})`
-                    continue
-                }
-
-                // Check uniqueness
+                // Only check uniqueness - format validation is handled by structured output
                 if (existingSlugs.includes(slug)) {
                     lastError = `Slug '${slug}' already exists`
                     continue

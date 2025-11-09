@@ -1,19 +1,29 @@
 import { existsSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { temporaryDirectory } from 'tempy'
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { execa } from 'execa'
 
 // Mock OpenAI runtime used by our LLM adapter
 type ModelOptions = { [key: string]: unknown }
 let invokeImpl: (args: unknown[]) => Promise<{ content: string }>
+let structuredInvokeImpl: (args: unknown[]) => Promise<{ slug: string }>
 
 vi.mock('@langchain/openai', () => {
+  class StructuredModel {
+    async invoke(args: unknown[]) {
+      return structuredInvokeImpl(args)
+    }
+  }
+
   class ChatOpenAI {
     // avoid no-useless-constructor by adding side-effect
     private readonly opts: ModelOptions
     constructor(opts: ModelOptions) { this.opts = opts }
     async invoke(args: unknown[]) { return invokeImpl(args) }
+    withStructuredOutput() {
+      return new StructuredModel()
+    }
   }
   return { ChatOpenAI }
 })
@@ -24,6 +34,7 @@ beforeEach(() => {
   vi.resetModules()
   process.env = { ...saveEnv, OPENAI_API_KEY: 'test-key' }
   invokeImpl = async () => ({ content: 'def-slug' })
+  structuredInvokeImpl = async () => ({ slug: 'def-slug' })
 })
 
 afterEach(() => {
