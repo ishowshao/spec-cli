@@ -1,4 +1,4 @@
-import { mkdirSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { temporaryDirectory } from 'tempy'
 import { describe, it, expect } from 'vitest'
@@ -8,7 +8,7 @@ import type { LlmClient } from '../src/types.ts'
 
 class FakeLlmClient implements LlmClient {
     constructor(private slug = 'demo-feature') {}
-    async generateSlug(_description: string, _existing: string[]): Promise<string> {
+    async generateSlug(): Promise<string> {
         return this.slug
     }
 }
@@ -66,4 +66,3 @@ describe('commands/create (E2E minimal path)', () => {
         }
     })
 })
-
