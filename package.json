@@ -1,0 +1,26 @@
+{
+  "name": "spec-cli",
+  "version": "0.0.1",
+  "description": "AI Coding Spec CLI",
+  "keywords": [
+    "AI"
+  ],
+  "homepage": "https://github.com/ishowshao/spec-cli#readme",
+  "bugs": {
+    "url": "https://github.com/ishowshao/spec-cli/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishowshao/spec-cli.git"
+  },
+  "license": "Apache-2.0",
+  "author": "ishowshao",
+  "type": "module",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
