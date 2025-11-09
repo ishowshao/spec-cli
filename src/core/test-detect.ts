@@ -116,4 +116,3 @@ export async function detectTestFrameworks(repoRoot: string): Promise<string[]> 
 
     return [...e2e, ...unit, ...pytest].slice(0, 5)
 }
-

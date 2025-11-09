@@ -9,7 +9,10 @@ const MAX_SLUG_LENGTH = 50
 const SlugSchema = z.object({
     slug: z
         .string()
-        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be kebab-case with only lowercase letters, numbers, and hyphens')
+        .regex(
+            /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+            'Slug must be kebab-case with only lowercase letters, numbers, and hyphens'
+        )
         .max(MAX_SLUG_LENGTH, `Slug must be ${String(MAX_SLUG_LENGTH)} characters or less`)
         .describe('A kebab-case slug (lowercase letters, numbers, and hyphens)'),
 })

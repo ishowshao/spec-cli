@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "docsDir": "docs",
+  "docTemplates": [
+    "requirements.md",
+    "tech-spec.md"
+  ],
+  "scaffoldPaths": [
+    "tests/{slug}.test.ts"
+  ],
+  "branchFormat": "feature-{slug}",
+  "defaultMergeTarget": "main"
+}
