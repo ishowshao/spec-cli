@@ -25,9 +25,9 @@ Spec CLI 是一个命令行工具，用于规范化软件开发流程中的 Feat
 1. 运行命令：`spec create "Add user authentication system"`
 2. 工具自动完成：
    - 生成规范的 feature 标识符（如：user-authentication）
-   - 创建文档目录结构和必要的文档文件
-   - 创建对应的测试文件
-   - 创建并切换到新的 feature 分支
+   - 创建并切换到新的 feature 分支（如：feature-user-authentication）
+   - 创建文档目录结构和必要的文档文件（写入仅发生在该分支内）
+   - 创建对应的测试文件/脚手架（依据 `scaffoldPaths` 展开）
    - 提交初始化的文件结构
 3. 开发者直接开始编写文档和代码
 
@@ -88,13 +88,15 @@ spec create <description>
 
 **处理流程**：
 1. 调用 LLM 接口，根据描述生成规范的 feature-slug
-2. 根据配置文件创建文档目录：`docs/{feature-slug}/`
-3. 在文档目录中创建配置的文档文件（空文件或包含基础模板）
-4. 依据 `scaffoldPaths` 展开模板：
+2. 创建并切换到新的 feature 分支（命名遵循配置的格式）
+3. 根据配置文件创建文档目录：`docs/{feature-slug}/`
+4. 在文档目录中创建配置的文档文件（空文件或包含基础模板）
+5. 依据 `scaffoldPaths` 展开模板：
    - 末尾带 `/` 的模板创建目录（递归创建父级）；
    - 其他模板创建文件（自动创建父目录，文件内容为空白）。
-5. 创建并切换到新的 feature 分支（命名遵循配置的格式）
 6. 将创建的文件提交到 Git（使用规范的 commit message）
+
+（说明）上述所有文件写入仅发生在新建的 feature 分支内；任一步失败时主分支不受影响。
 
 **异常处理**：
 - Feature 已存在时，提示用户并终止操作
@@ -105,6 +107,7 @@ spec create <description>
 - Feature slug 必须唯一
 - 必须在 Git 仓库中执行
 - 工作区应该是干净的（无未提交的变更）
+- 所有文件写入发生在新建的 feature 分支内（主分支不受影响）
 
 ### 5.3 列出功能 (spec list)
 
