@@ -58,7 +58,6 @@ export class OpenAILlmClient implements LlmClient {
                 },
             }),
             timeout: timeoutMs,
-            temperature: 0,
         })
 
         // Create structured output model with Zod schema

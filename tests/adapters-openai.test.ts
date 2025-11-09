@@ -68,7 +68,6 @@ it('constructs client with env config and generates slug', async () => {
     modelName: 'm',
     openAIApiKey: 'test',
     timeout: 1234,
-    temperature: 0,
   })
   // baseURL is nested under configuration when provided
   expect(constructedOptions[0]?.configuration?.baseURL).toBe('https://example.com')
