@@ -6,10 +6,7 @@ import { execa } from 'execa'
 
 vi.mock('node:fs/promises', () => {
   return {
-    readdir: async () => {
-      // eslint-disable-next-line no-throw-literal
-      throw 'not-an-error-object'
-    },
+    readdir: async () => { throw 'not-an-error-object' },
   }
 })
 
@@ -40,4 +37,3 @@ describe('listCommand unknown error branch (non-Error thrown)', () => {
     }
   })
 })
-
