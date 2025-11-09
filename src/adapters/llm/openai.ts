@@ -24,9 +24,13 @@ Description: {description}
 
 {existingContext}`
 
+type SlugResult = z.infer<typeof SlugSchema>
+
 export class OpenAILlmClient implements LlmClient {
     private client: ChatOpenAI
-    private structuredModel: ReturnType<ChatOpenAI['withStructuredOutput']>
+    private structuredModel: {
+        invoke: (messages: unknown[]) => Promise<SlugResult>
+    }
     private maxAttempts: number
     private timeout: number
 
@@ -55,7 +59,9 @@ export class OpenAILlmClient implements LlmClient {
         })
 
         // Create structured output model with Zod schema
-        this.structuredModel = this.client.withStructuredOutput(SlugSchema)
+        this.structuredModel = this.client.withStructuredOutput(SlugSchema) as {
+            invoke: (messages: unknown[]) => Promise<SlugResult>
+        }
 
         this.maxAttempts = maxAttempts
         this.timeout = timeoutMs

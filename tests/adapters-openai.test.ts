@@ -201,7 +201,7 @@ it('uses default timeout when SPEC_LLM_TIMEOUT_MS is invalid', async () => {
   process.env.SPEC_LLM_TIMEOUT_MS = 'invalid'
   
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
-  const llm = new OpenAILlmClient()
+  const _llm = new OpenAILlmClient()
   
   expect(constructedOptions[0]?.timeout).toBe(8000) // Default value
 })
@@ -223,7 +223,7 @@ it('uses default timeout when SPEC_LLM_TIMEOUT_MS is zero', async () => {
   process.env.SPEC_LLM_TIMEOUT_MS = '0'
   
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
-  const llm = new OpenAILlmClient()
+  const _llm = new OpenAILlmClient()
   
   expect(constructedOptions[0]?.timeout).toBe(8000) // Default value (0 || 8000)
 })

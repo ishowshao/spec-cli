@@ -93,6 +93,11 @@ export default [
   {
     files: ['**/*.test.ts', '**/*.spec.ts', 'tests/**/*.ts'],
     rules: {
+      // Allow underscore-prefixed placeholders in tests too
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       ...prettierConfig.rules,
     },
   },
