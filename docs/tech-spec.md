@@ -126,7 +126,7 @@ zod Schema（语义）：
   "docTemplates": ["requirements.md", "tech-spec.md", "user-stories.md"],
   "scaffoldPaths": [
     "tests/e2e/{slug}.spec.ts",
-    "src/components/{slug}/"
+    "tests/{slug}.test.ts"
   ],
   "branchFormat": "feature-{slug}",
   "defaultMergeTarget": "main"
@@ -150,8 +150,9 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 - 目的：交互式创建 `spec.config.json`。
 - 自动探测：
   - `docs/` 是否存在；
-  - 常见测试与源码分层：例如 `tests/`、`tests/e2e/`、`tests/unit/`、`src/**/__tests__/`、`src/components/` 等；
-  - 基于扫描结果生成 `scaffoldPaths` 候选模板（示例：`tests/e2e/{slug}.spec.ts`、`tests/unit/{slug}.test.ts`、`src/components/{slug}/`），供用户一键勾选；用户可手动增删改。
+  - 仅检测测试相关结构：例如 `tests/`、`tests/e2e/`、`tests/unit/`、`src/**/__tests__/` 等；
+  - 基于扫描结果与已安装工具生成 `scaffoldPaths` 候选模板（示例：`tests/e2e/{slug}.spec.ts`、`tests/{slug}.test.ts`、`cypress/e2e/{slug}.cy.ts`），供用户一键勾选；用户可手动增删改。
+  - MVP 仅覆盖 JS/TS 与 Pytest；不推荐任何 `src/**` 业务目录模板。
 - 交互项（@clack/prompts）：
   - `docsDir`、`docTemplates`（默认三项且均为空白）；
   - `scaffoldPaths`（多条输入/选择，默认空数组）；
@@ -159,6 +160,27 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 - 校验与落盘：
   - `scaffoldPaths` 每项必须为相对路径、包含 `{slug}`、不得越界；
   - 使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
+
+自动扫描候选规则（MVP：JS/TS + Pytest）
+- JS/TS 扩展名推断：若存在 `tsconfig.json` 或发现 `.ts/.tsx` 测试样本，则使用 `ts`，否则 `js`。若存在对应工具的 `*.config.ts/js`，优先沿用其扩展名。
+- Jest/Vitest（单测）：
+  - 检测信号：`jest.config.*`、`vitest.config.*`、或 `package.json` 的依赖含 `jest`/`vitest`。
+  - 目录优先级：存在 `__tests__/` → `__tests__/{slug}.<suffix>.<ext>`；否则存在 `tests/` → `tests/{slug}.<suffix>.<ext>`；都不存在则建议 `tests/{slug}.<suffix>.<ext>`。
+  - `<suffix>` 通过样本多数决（`.spec.` vs `.test.`）；若都未发现则默认 `test`。
+- Playwright（E2E）：
+  - 检测信号：`playwright.config.*` 或 `package.json` 依赖含 `@playwright/test`。
+  - 目录优先级：存在 `tests/e2e/` → `tests/e2e/{slug}.spec.<ext>`；否则存在 `tests/` → `tests/{slug}.spec.<ext>`；否则建议 `e2e/{slug}.spec.<ext>`。
+- Cypress（E2E）：
+  - 检测信号：`cypress.config.*`、`cypress/` 目录、或 `package.json` 依赖含 `cypress`。
+  - 目录优先级：存在 `cypress/e2e/` → `cypress/e2e/{slug}.cy.<ext>`；否则存在旧结构 `cypress/integration/` → `cypress/integration/{slug}.spec.<ext>`；否则建议 `cypress/e2e/{slug}.cy.<ext>`。
+- Pytest（Python）：
+  - 检测信号：`pytest.ini`、`pyproject.toml` 的 `[tool.pytest.ini_options]`、`tox.ini` 含 pytest 配置，或已有 `tests/test_*.py`。
+  - 模板：存在 `tests/` → `tests/test_{slug}.py`；否则建议 `tests/test_{slug}.py`。
+
+其他约束
+- 仅为“测试”生成候选；不生成 `src/**` 下的业务目录模板。
+- 最多保留 5 条候选；排序：E2E（Playwright/Cypress） > 单测（Jest/Vitest） > Pytest。
+- 对已存在同名路径的候选进行去重与剔除。
 
 ### 6.2 spec create <description>
 
@@ -279,7 +301,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 ### 10.3 集成测试（E2E）
 
-- `spec init`：在空仓库内生成 `spec.config.json`，断言默认值；当扫描到常见测试/源码结构时，给出 `scaffoldPaths` 建议并持久化选中项。
+- `spec init`：在空仓库内生成 `spec.config.json`，断言默认值；当扫描到常见测试工具及目录结构时，给出 `scaffoldPaths` 建议并持久化选中项。
 - `spec create`：
   - 生成 `docs/{slug}/` 与空白模板；
   - 按 `scaffoldPaths` 正确创建目录/文件（文件为空白）；

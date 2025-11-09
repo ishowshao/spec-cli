@@ -63,7 +63,7 @@ Spec CLI 是一个命令行工具，用于规范化软件开发流程中的 Feat
 **配置项**：
 - 文档目录路径（默认：`docs/`）
 - 文档模板列表（默认：`requirements.md`, `tech-spec.md`, `user-stories.md`）
-- 附加脚手架路径模板 `scaffoldPaths`（可为空）：在 `spec init` 中自动扫描常见测试/源码结构给出候选（如 `tests/e2e/{slug}.spec.ts`、`src/components/{slug}/`），用户可选择或手动编辑。
+ - 附加脚手架路径模板 `scaffoldPaths`（可为空）：在 `spec init` 中自动扫描常见测试工具及目录结构给出候选（例如：`tests/e2e/{slug}.spec.ts`、`tests/{slug}.test.ts`、`tests/test_{slug}.py`），用户可选择或手动编辑。
 - 分支命名格式（默认：`feature-{slug}`）
 - 默认合并目标分支（默认：`main`）
 
