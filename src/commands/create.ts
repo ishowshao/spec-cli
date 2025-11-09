@@ -124,7 +124,7 @@ export async function createCommand(description: string, llmClient?: LlmClient):
         p.log.error(errorMessage)
 
         // Determine exit code based on error type
-        if (errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('LLM') || errorMessage.includes('slug')) {
+        if (errorMessage.includes('SPEC_OPENAI_API_KEY') || errorMessage.includes('LLM') || errorMessage.includes('slug')) {
             process.exit(ExitCodes.LLM_ERROR)
         } else if (errorMessage.includes('config') || errorMessage.includes('Configuration')) {
             process.exit(ExitCodes.CONFIG_ERROR)

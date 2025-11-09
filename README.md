@@ -29,7 +29,7 @@ npm install -g spec-cli
 
 - **Node.js**: Version 22 LTS or higher
 - **Git**: Installed and configured with user.name and user.email
-- **OpenAI API Key**: Required for feature slug generation (set via `OPENAI_API_KEY` environment variable)
+- **OpenAI API Key**: Required for feature slug generation (set via `SPEC_OPENAI_API_KEY` environment variable)
 
 ## Configuration
 
@@ -39,8 +39,8 @@ Set the following environment variables before using the CLI:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | Yes | - | Your OpenAI API key |
-| `OPENAI_BASE_URL` | No | - | Custom API base URL (for compatible APIs) |
+| `SPEC_OPENAI_API_KEY` | Yes | - | Your OpenAI API key |
+| `SPEC_OPENAI_BASE_URL` | No | - | Custom API base URL (for compatible APIs) |
 | `SPEC_OPENAI_MODEL` | No | `gpt-5-mini` | Model name to use |
 | `SPEC_LLM_TIMEOUT_MS` | No | `8000` | Request timeout in milliseconds |
 | `SPEC_LLM_MAX_ATTEMPTS` | No | `3` | Maximum retry attempts for LLM calls |

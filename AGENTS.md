@@ -26,7 +26,7 @@
 ## Testing Guidelines
 - Vitest + V8 coverage with 90% lines/branches/functions/statements (see `vitest.config.ts`).
 - Place tests under `tests/` named `*.test.ts`.
-- Prefer deterministic, unit‑first tests; mock LLM/network calls. Tests must not require `OPENAI_API_KEY`.
+- Prefer deterministic, unit‑first tests; mock LLM/network calls. Tests must not require `SPEC_OPENAI_API_KEY`.
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commits for every commit: types like `feat`, `fix`, `refactor`, `test`, `docs`, `chore` (optionally with a `scope`).
@@ -41,7 +41,7 @@
 - CI hygiene: run `npm run lint`, `npm run coverage`, and `npm run build` before pushing. Do not commit `dist/`, `node_modules/`, or secrets.
 
 ## Security & Configuration Tips
-- Never commit secrets. Use env vars: `OPENAI_API_KEY` (required), `SPEC_OPENAI_MODEL`, `SPEC_LLM_TIMEOUT_MS`.
+- Never commit secrets. Use env vars: `SPEC_OPENAI_API_KEY` (required), `SPEC_OPENAI_MODEL`, `SPEC_LLM_TIMEOUT_MS`.
 - Keep `spec.config.json` minimal and portable; scaffold paths must be relative and include `{slug}`.
 
 ## Agent‑Specific Instructions

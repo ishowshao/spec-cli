@@ -210,7 +210,7 @@ spec merge <feature-slug>
 
 **用途**：根据用户描述生成规范的 feature-slug
 
-**MVP 限定**：仅支持 OpenAI。通过环境变量 `OPENAI_API_KEY`（可选：`OPENAI_BASE_URL`）配置。
+**MVP 限定**：仅支持 OpenAI。通过环境变量 `SPEC_OPENAI_API_KEY`（可选：`SPEC_OPENAI_BASE_URL`）配置。
 
 **默认行为**：LLM 调用超时 8000ms，最多重试 3 次（含原因反馈重试）；可通过环境变量调整：`SPEC_OPENAI_MODEL`、`SPEC_LLM_TIMEOUT_MS`、`SPEC_LLM_MAX_ATTEMPTS`。
 

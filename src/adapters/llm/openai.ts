@@ -38,10 +38,10 @@ export class OpenAILlmClient implements LlmClient {
     private timeout: number
 
     constructor() {
-        const apiKey = process.env.OPENAI_API_KEY
+        const apiKey = process.env.SPEC_OPENAI_API_KEY
         if (!apiKey) {
             throw new Error(
-                'OPENAI_API_KEY environment variable is required. Please set it before running this command.'
+                'SPEC_OPENAI_API_KEY environment variable is required. Please set it before running this command.'
             )
         }
 
@@ -52,9 +52,9 @@ export class OpenAILlmClient implements LlmClient {
         this.client = new ChatOpenAI({
             modelName: model,
             openAIApiKey: apiKey,
-            ...(process.env.OPENAI_BASE_URL && {
+            ...(process.env.SPEC_OPENAI_BASE_URL && {
                 configuration: {
-                    baseURL: process.env.OPENAI_BASE_URL,
+                    baseURL: process.env.SPEC_OPENAI_BASE_URL,
                 },
             }),
             timeout: timeoutMs,

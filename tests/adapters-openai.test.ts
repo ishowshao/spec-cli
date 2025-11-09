@@ -47,17 +47,17 @@ afterEach(() => {
   process.env = { ...saveEnv }
 })
 
-it('throws if OPENAI_API_KEY is missing', async () => {
-  delete process.env.OPENAI_API_KEY
+it('throws if SPEC_OPENAI_API_KEY is missing', async () => {
+  delete process.env.SPEC_OPENAI_API_KEY
   const mod = await import('../src/adapters/llm/openai.ts')
-  expect(() => new mod.OpenAILlmClient()).toThrow(/OPENAI_API_KEY/)
+  expect(() => new mod.OpenAILlmClient()).toThrow(/SPEC_OPENAI_API_KEY/)
 })
 
 it('constructs client with env config and generates slug', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_OPENAI_MODEL = 'm'
   process.env.SPEC_LLM_TIMEOUT_MS = '1234'
-  process.env.OPENAI_BASE_URL = 'https://example.com'
+  process.env.SPEC_OPENAI_BASE_URL = 'https://example.com'
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
   const llm = new OpenAILlmClient()
@@ -74,7 +74,7 @@ it('constructs client with env config and generates slug', async () => {
 })
 
 it('retries on duplicate slug and succeeds on second attempt', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '2'
   let calls = 0
   structuredInvokeImpl = async () => {
@@ -89,7 +89,7 @@ it('retries on duplicate slug and succeeds on second attempt', async () => {
 })
 
 it('fails when structured output throws validation error after max attempts', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '1'
   structuredInvokeImpl = async () => {
     throw new Error('Validation failed: Invalid slug format')
@@ -101,7 +101,7 @@ it('fails when structured output throws validation error after max attempts', as
 })
 
 it('structured output ensures slug format and length are valid', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   structuredInvokeImpl = async () => ({ slug: 'valid-slug-123' })
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -112,7 +112,7 @@ it('structured output ensures slug format and length are valid', async () => {
 })
 
 it('handles empty existingSlugs array', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   structuredInvokeImpl = async () => ({ slug: 'new-slug' })
 
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -122,7 +122,7 @@ it('handles empty existingSlugs array', async () => {
 })
 
 it('retries with exponential backoff on error and succeeds', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '3'
   let calls = 0
   const startTime = Date.now()
@@ -146,7 +146,7 @@ it('retries with exponential backoff on error and succeeds', async () => {
 })
 
 it('handles non-Error objects thrown', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '1'
   structuredInvokeImpl = async () => {
     throw 'String error' // Non-Error object
@@ -158,7 +158,7 @@ it('handles non-Error objects thrown', async () => {
 })
 
 it('throws error after max attempts with lastError message', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '2'
   let calls = 0
   
@@ -176,7 +176,7 @@ it('throws error after max attempts with lastError message', async () => {
 })
 
 it('throws error after max attempts when all slugs are duplicates', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '2'
   let calls = 0
   
@@ -196,7 +196,7 @@ it('throws error after max attempts when all slugs are duplicates', async () => 
 })
 
 it('uses default timeout when SPEC_LLM_TIMEOUT_MS is invalid', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_TIMEOUT_MS = 'invalid'
   
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -206,7 +206,7 @@ it('uses default timeout when SPEC_LLM_TIMEOUT_MS is invalid', async () => {
 })
 
 it('uses default maxAttempts when SPEC_LLM_MAX_ATTEMPTS is invalid', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = 'not-a-number'
   
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -218,7 +218,7 @@ it('uses default maxAttempts when SPEC_LLM_MAX_ATTEMPTS is invalid', async () =>
 })
 
 it('uses default timeout when SPEC_LLM_TIMEOUT_MS is zero', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_TIMEOUT_MS = '0'
   
   const { OpenAILlmClient } = await import('../src/adapters/llm/openai.ts')
@@ -228,7 +228,7 @@ it('uses default timeout when SPEC_LLM_TIMEOUT_MS is zero', async () => {
 })
 
 it('handles multiple duplicate slugs and retries', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '3'
   let calls = 0
   
@@ -245,7 +245,7 @@ it('handles multiple duplicate slugs and retries', async () => {
 })
 
 it('includes lastError in final error message when available', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   process.env.SPEC_LLM_MAX_ATTEMPTS = '2'
   
   structuredInvokeImpl = async () => {
@@ -258,7 +258,7 @@ it('includes lastError in final error message when available', async () => {
 })
 
 it('omits lastError suffix when no attempts run (negative maxAttempts)', async () => {
-  process.env.OPENAI_API_KEY = 'test'
+  process.env.SPEC_OPENAI_API_KEY = 'test'
   // Negative number bypasses the loop and triggers the final throw
   process.env.SPEC_LLM_MAX_ATTEMPTS = '-1'
 
