@@ -29,7 +29,7 @@ Set the following environment variables before using the CLI:
 
 - `OPENAI_API_KEY` (required): Your OpenAI API key
 - `OPENAI_BASE_URL` (optional): Custom API base URL
-- `SPEC_OPENAI_MODEL` (optional, default: `gpt-4o-mini`): Model name
+- `SPEC_OPENAI_MODEL` (optional, default: `gpt-5-mini`): Model name
 - `SPEC_LLM_TIMEOUT_MS` (optional, default: `8000`): Request timeout in milliseconds
 - `SPEC_LLM_MAX_ATTEMPTS` (optional, default: `3`): Maximum retry attempts
 
