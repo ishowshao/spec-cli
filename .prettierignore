@@ -1,0 +1,22 @@
+# Build output
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated files
+*.d.ts.map
+*.js.map
+
+# Config files that shouldn't be formatted
+tsconfig.json
+

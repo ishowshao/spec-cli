@@ -1,7 +1,7 @@
 {
   "name": "spec-cli",
-  "version": "0.0.1",
-  "description": "AI Coding Spec CLI",
+  "version": "0.1.0",
+  "description": "AI Coding Spec CLI - Standardize Feature development workflow",
   "keywords": [
     "AI"
   ],
@@ -16,11 +16,43 @@
   "license": "Apache-2.0",
   "author": "ishowshao",
   "type": "module",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
+  "bin": {
+    "spec": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx src/cli.ts",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write \"src/**/*.{ts,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,json,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.8.2",
+    "@langchain/core": "^0.3.0",
+    "@langchain/openai": "^0.3.0",
+    "commander": "^12.1.0",
+    "execa": "^9.4.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.46.3",
+    "@typescript-eslint/parser": "^8.46.3",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "tempy": "^3.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }
