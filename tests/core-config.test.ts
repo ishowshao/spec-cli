@@ -2,7 +2,7 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { temporaryDirectory } from 'tempy'
 import { describe, it, expect } from 'vitest'
-import { loadConfig } from '../src/core/config.ts'
+import { loadConfig, getConfigPath } from '../src/core/config.ts'
 
 describe('core/config loadConfig', () => {
     it('loads a valid config', () => {
@@ -45,5 +45,16 @@ describe('core/config loadConfig', () => {
         const dir = temporaryDirectory()
         expect(() => loadConfig(dir)).toThrow(/Configuration file not found/i)
     })
-})
 
+    it('throws "Failed to load configuration" when JSON is invalid', () => {
+        const dir = temporaryDirectory()
+        // write invalid JSON
+        writeFileSync(join(dir, 'spec.config.json'), '{ not: valid', 'utf-8')
+        expect(() => loadConfig(dir)).toThrow(/Failed to load configuration/i)
+    })
+
+    it('getConfigPath returns absolute config path', () => {
+        const dir = temporaryDirectory()
+        expect(getConfigPath(dir)).toBe(join(dir, 'spec.config.json'))
+    })
+})

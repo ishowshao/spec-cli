@@ -1,17 +1,18 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // Shared state for the mock to control behavior
-let invokeImpl: (args: any[]) => Promise<{ content: string }>
-let constructedOptions: any[] = []
+type ModelOptions = { [key: string]: unknown; configuration?: { baseURL?: string } }
+let invokeImpl: (args: unknown[]) => Promise<{ content: string }>
+let constructedOptions: ModelOptions[] = []
 
 vi.mock('@langchain/openai', () => {
   class ChatOpenAI {
-    static lastOptions: any
-    constructor(opts: any) {
+    static lastOptions: ModelOptions
+    constructor(opts: ModelOptions) {
       constructedOptions.push(opts)
       ChatOpenAI.lastOptions = opts
     }
-    async invoke(args: any[]) {
+    async invoke(args: unknown[]) {
       return invokeImpl(args)
     }
   }
@@ -92,4 +93,3 @@ it('fails when slug is too long', async () => {
   const llm = new OpenAILlmClient()
   await expect(llm.generateSlug('desc', [])).rejects.toThrow(/Too long/)
 })
-
