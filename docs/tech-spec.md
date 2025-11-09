@@ -64,7 +64,7 @@ src/
   core/
     config.ts            # 读取/校验 spec.config.json（zod）
     preflight.ts         # Git/工作区/网络/配置检查
-    templates.ts         # 空白文档/测试文件创建（支持 testsMode/testsDirs）
+    templates.ts         # 文档与 scaffoldPaths 的文件/目录创建
     slug.ts              # 基于 LLM 的 slug 生成与校验
     git.ts               # Git 封装（execa）
     logger.ts            # 输出/颜色/verbose
@@ -98,16 +98,19 @@ zod Schema（语义）：
   schemaVersion: 1,
   docsDir: string,                 # 默认 "docs"
   docTemplates: string[],          # 默认 ["requirements.md","tech-spec.md","user-stories.md"]
-  testsMode?: "single"|"multiple"|"none", # 测试落盘策略（由 init 决定），默认：若 testsDirs 为空则 "none"，否则按长度推断
-  testsDirs?: string[] | null,     # 由 init 自动探测并经用户确认；single: 恰 1 个；multiple: >=1 个；none/null: 不生成测试
-  testFileExt?: string,            # 自动探测，例：".test.ts"
+  scaffoldPaths?: string[],        # 额外脚手架路径模板（可为空），每项必须包含 {slug}
   branchFormat: string,            # 默认 "feature-{slug}"
   defaultMergeTarget: string       # 默认 "main"
 }
 ```
 
-兼容性（读取层面）：若旧版本仅存在 `testsDir: string` 字段，则等价于
-`testsMode = "single"` 且 `testsDirs = [testsDir]`。
+约束（MVP）：
+- `scaffoldPaths` 中每个模板必须：
+  - 为相对路径（不可为绝对路径）；
+  - 不包含越界段（禁止 `..`、`~` 等）；
+  - 必须包含占位符 `{slug}`；
+  - 末尾带 `/` 视为目录模板；否则视为文件模板（父目录自动创建，文件内容为空）。
+- 所有展开后的路径必须落在仓库根目录内。
 
 命名与位置（MVP）：
 - 文件名：`spec.config.json`
@@ -121,9 +124,10 @@ zod Schema（语义）：
   "schemaVersion": 1,
   "docsDir": "docs",
   "docTemplates": ["requirements.md", "tech-spec.md", "user-stories.md"],
-  "testsMode": "single",
-  "testsDirs": ["tests"],
-  "testFileExt": ".test.ts",
+  "scaffoldPaths": [
+    "tests/e2e/{slug}.spec.ts",
+    "src/components/{slug}/"
+  ],
   "branchFormat": "feature-{slug}",
   "defaultMergeTarget": "main"
 }
@@ -146,15 +150,14 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 - 目的：交互式创建 `spec.config.json`。
 - 自动探测：
   - `docs/` 是否存在；
-  - 常见测试目录与分层：例如 `tests/`、`tests/e2e/`、`tests/unit/`、`src/**/__tests__/`；
-  - 测试扩展名：扫描现有 `*.test.*` 或 `*.spec.*` 推断优先候选。
+  - 常见测试与源码分层：例如 `tests/`、`tests/e2e/`、`tests/unit/`、`src/**/__tests__/`、`src/components/` 等；
+  - 基于扫描结果生成 `scaffoldPaths` 候选模板（示例：`tests/e2e/{slug}.spec.ts`、`tests/unit/{slug}.test.ts`、`src/components/{slug}/`），供用户一键勾选；用户可手动增删改。
 - 交互项（@clack/prompts）：
   - `docsDir`、`docTemplates`（默认三项且均为空白）；
-  - `testsMode`（`single`/`multiple`/`none`）与 `testsDirs`（基于探测结果给出候选，用户可增删改）；
-  - `testFileExt`、`branchFormat`、`defaultMergeTarget`。
+  - `scaffoldPaths`（多条输入/选择，默认空数组）；
+  - `branchFormat`、`defaultMergeTarget`。
 - 校验与落盘：
-  - `testsMode = single` 时要求 `testsDirs.length === 1`；`multiple` 时要求 `>=1`；`none` 时 `testsDirs` 可省略/为空；
-  - 所有 `testsDirs` 必须为相对路径且目录存在（如不存在可选择创建）；
+  - `scaffoldPaths` 每项必须为相对路径、包含 `{slug}`、不得越界；
   - 使用 zod 验证，无效项要求重新输入；写入严格 JSON（无注释）。
 
 ### 6.2 spec create <description>
@@ -171,16 +174,16 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - 唯一性检查：
     - 文档目录：`{docsDir}/{slug}/` 不存在；
     - 本地分支：`git show-ref --verify refs/heads/{branch}` 不存在（`{branch}` 由 `branchFormat` 展开）；
+    - 展开 `scaffoldPaths` 后的所有目标路径均不存在；
     - 任一冲突都会把“已占用”事实反馈给 LLM 请求替代 slug，直至达到重试上限。
 - 执行（顺序保证不污染主分支）：
   - 先创建并切换新分支：`git switch -c {branch}`（`branchFormat` 替换 `{slug}`）。若分支创建/切换失败，立即退出，不进行任何文件写入。
   - 在该新分支内创建目录：`{docsDir}/{slug}/`。
   - 在目录下生成空白文件：按 `docTemplates` 列表创建（内容为空）。
-  - 测试文件创建严格按配置落盘（不再运行期猜测层级）：
-    - 当 `testsMode = "single"` 且 `testsDirs=[d]` 时，在 `d/{slug}{testFileExt}` 创建；
-    - 当 `testsMode = "multiple"` 且 `testsDirs=[d1,d2,...]` 时，分别在每个目录创建同名占位测试文件；
-    - 当 `testsMode = "none"` 或 `testsDirs` 为空时，不创建测试文件；
-    - 仅作为占位文件，不强制绑定特定框架命名习惯。
+  - 依据 `scaffoldPaths` 逐条创建：
+    - 末尾带 `/` → 创建目录（递归创建父级）。
+    - 否则 → 创建文件（自动创建父目录，内容为空白）。
+    - 若任何目标在执行前已存在，应在预检阶段失败，不进入写入阶段。
   - 初始提交：`git add` → `git commit -m "feat({slug}): scaffold feature structure"`。
 - 输出：展示 slug、分支名、创建的路径；遇错给出明确恢复建议（所有变更均在 feature 分支内，主分支不受影响）。
 
@@ -225,7 +228,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 ### 7.2 验证与重试
 
 - 使用正则校验与长度校验；失败则构造“违规原因 + 需修正点”的反馈给模型，最多 `maxAttempts` 次。
-- 唯一性冲突（目录/分支已存在）也作为上下文提示模型生成新 slug。
+- 唯一性冲突（目录/分支/`scaffoldPaths` 目标已存在）也作为上下文提示模型生成新 slug。
 - 达到上限仍失败则报错退出；不支持手工 `--slug` 覆盖（MVP，取舍说明见 §13.1）。
 
 ### 7.3 网络与超时
@@ -244,6 +247,7 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
   - `getUpstream(branch)`：解析 `@{u}`，判断是否已设置 upstream；
   - `switch/create/commit/merge/pull/push` 等封装，失败返回结构化错误（含 `hint`）。
 - 安全原则（分支先行，写入隔离）：在通过预检后，先创建并切换到 feature 分支；任何文件写入仅发生在该分支内。任一步失败时主分支不受影响（原子性/隔离）。
+- 路径安全：解析 `scaffoldPaths` 展开结果必须位于 repo 根内；若包含绝对路径或越界段，一律视为配置校验失败（码 2）。
 
 ## 9. 日志、错误与退出码
 
@@ -268,17 +272,17 @@ LLM 相关配置属于 `spec-cli` 的工具级依赖配置，不写入目标仓�
 
 ### 10.2 单元测试（示例）
 
-- config：加载/默认值回填/非法配置报错；`testsMode/testsDirs` 的组合校验与旧字段 `testsDir` 的兼容映射。
+- config：加载/默认值回填/非法配置报错；`scaffoldPaths` 的格式校验（相对路径、包含 `{slug}`、不越界、末尾 `/` 语义）。
 - preflight：仓库检测、工作区清洁度解析、错误映射。
 - slug：响应解析、正则校验、违规反馈拼接、重试上限逻辑、唯一性冲突处理。
 - git 参数构造：普通 merge 的命令拼装（不包含 squash/rebase）。
 
 ### 10.3 集成测试（E2E）
 
-- `spec init`：在空仓库内生成 `spec.config.json`，断言内容与默认值；当探测到多层测试结构时，提示并持久化 `testsMode = multiple` 与 `testsDirs`。
+- `spec init`：在空仓库内生成 `spec.config.json`，断言默认值；当扫描到常见测试/源码结构时，给出 `scaffoldPaths` 建议并持久化选中项。
 - `spec create`：
   - 生成 `docs/{slug}/` 与空白模板；
-  - 按 `testsMode/testsDirs` 正确落盘占位测试文件（single: 正好 1 个；multiple: 在每个目录各 1 个；none: 0 个）；
+  - 按 `scaffoldPaths` 正确创建目录/文件（文件为空白）；
   - 新建分支并提交；
   - 冲突与不合规返回路径验证（借助 FakeLlmClient 注入不同响应）。
 - `spec list`：基于 docs 目录正确枚举；断言输出按字母序（ASCII 升序）排序且仅包含 slug 文本。

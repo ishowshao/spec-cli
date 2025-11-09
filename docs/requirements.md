@@ -63,8 +63,7 @@ Spec CLI 是一个命令行工具，用于规范化软件开发流程中的 Feat
 **配置项**：
 - 文档目录路径（默认：`docs/`）
 - 文档模板列表（默认：`requirements.md`, `tech-spec.md`, `user-stories.md`）
-- 测试目录路径（自动检测常见路径，用户确认或修改）
-- 测试文件扩展名（自动检测项目中使用的扩展名）
+- 附加脚手架路径模板 `scaffoldPaths`（可为空）：在 `spec init` 中自动扫描常见测试/源码结构给出候选（如 `tests/e2e/{slug}.spec.ts`、`src/components/{slug}/`），用户可选择或手动编辑。
 - 分支命名格式（默认：`feature-{slug}`）
 - 默认合并目标分支（默认：`main`）
 
@@ -91,7 +90,9 @@ spec create <description>
 1. 调用 LLM 接口，根据描述生成规范的 feature-slug
 2. 根据配置文件创建文档目录：`docs/{feature-slug}/`
 3. 在文档目录中创建配置的文档文件（空文件或包含基础模板）
-4. 如果项目配置了测试目录，依据自动探测的项目结构创建对应的测试文件（例如检测到 `tests/e2e/` 则在 `tests/e2e/` 下创建），不对层级做硬编码限制
+4. 依据 `scaffoldPaths` 展开模板：
+   - 末尾带 `/` 的模板创建目录（递归创建父级）；
+   - 其他模板创建文件（自动创建父目录，文件内容为空白）。
 5. 创建并切换到新的 feature 分支（命名遵循配置的格式）
 6. 将创建的文件提交到 Git（使用规范的 commit message）
 
@@ -225,6 +226,7 @@ spec merge <feature-slug>
 - 需要网络连接（调用 LLM API）
 - 遵循项目现有的目录结构和命名规范
 - `spec create` 仅创建新文件与分支；`spec merge` 通过 Git 合并（可能修改目标分支上的现有文件）
+- `scaffoldPaths` 必须为相对路径、包含 `{slug}`，不得越界（禁止绝对路径与 `..`）；展开后的目标必须位于仓库根目录内；目标已存在一律视为冲突。
 
 ## 10. 错误与退出码（MVP）
 
