@@ -11,7 +11,7 @@ import {
 import { createFeatureDocs, createScaffoldPaths } from '../core/templates.js'
 import { gitSwitch, gitAdd, gitCommit } from '../core/git.js'
 import { OpenAILlmClient } from '../adapters/llm/openai.js'
-import { ExitCodes } from '../types.js'
+import { ExitCodes, type LlmClient } from '../types.js'
 import * as p from '@clack/prompts'
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -29,7 +29,7 @@ async function getExistingSlugs(repoRoot: string, config: { docsDir: string }): 
     }
 }
 
-export async function createCommand(description: string): Promise<void> {
+export async function createCommand(description: string, llmClient?: LlmClient): Promise<void> {
     const spinner = p.spinner()
 
     try {
@@ -44,8 +44,8 @@ export async function createCommand(description: string): Promise<void> {
 
         spinner.message('Generating feature slug...')
 
-        // Initialize LLM client
-        const llmClient = new OpenAILlmClient()
+        // Initialize LLM client (allow injection for tests)
+        const client: LlmClient = llmClient ?? new OpenAILlmClient()
 
         // Get existing slugs for uniqueness check
         const existingSlugs = await getExistingSlugs(repoRoot, config)
@@ -57,7 +57,7 @@ export async function createCommand(description: string): Promise<void> {
 
         while (attempts < maxAttempts && !slug) {
             attempts++
-            const candidate = await llmClient.generateSlug(description, existingSlugs)
+            const candidate = await client.generateSlug(description, existingSlugs)
 
             // Check feature directory doesn't exist
             if (checkFeatureExists(repoRoot, config, candidate)) {

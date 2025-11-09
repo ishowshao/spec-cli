@@ -31,6 +31,7 @@
     "format": "prettier --write \"src/**/*.{ts,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,json,md}\"",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "prepublishOnly": "npm run build"
   },
@@ -46,6 +47,7 @@
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.46.3",
     "@typescript-eslint/parser": "^8.46.3",
+    "@vitest/coverage-v8": "^4.0.8",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.6.2",
@@ -53,6 +55,6 @@
     "tempy": "^3.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.0.8"
   }
 }
