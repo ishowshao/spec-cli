@@ -26,7 +26,7 @@ describe('core/config loadConfig', () => {
         expect(loaded.defaultMergeTarget).toBe('main')
     })
 
-    it('throws on invalid scaffoldPaths', () => {
+  it('throws on invalid scaffoldPaths', () => {
         const dir = temporaryDirectory()
         const bad = {
             schemaVersion: 1,
@@ -38,8 +38,36 @@ describe('core/config loadConfig', () => {
         }
         writeFileSync(join(dir, 'spec.config.json'), JSON.stringify(bad, null, 2))
 
-        expect(() => loadConfig(dir)).toThrow(/Invalid configuration/i)
-    })
+    expect(() => loadConfig(dir)).toThrow(/Invalid configuration/i)
+  })
+
+  it('throws when scaffoldPaths missing {slug}', () => {
+    const dir = temporaryDirectory()
+    const bad = {
+      schemaVersion: 1,
+      docsDir: 'docs',
+      docTemplates: ['requirements.md'],
+      scaffoldPaths: ['tests/no-slug.test.ts'],
+      branchFormat: 'feature-{slug}',
+      defaultMergeTarget: 'main',
+    }
+    writeFileSync(join(dir, 'spec.config.json'), JSON.stringify(bad, null, 2))
+    expect(() => loadConfig(dir)).toThrow(/Invalid configuration/i)
+  })
+
+  it('throws when scaffoldPaths contains ..', () => {
+    const dir = temporaryDirectory()
+    const bad = {
+      schemaVersion: 1,
+      docsDir: 'docs',
+      docTemplates: ['requirements.md'],
+      scaffoldPaths: ['../up/{slug}.test.ts'],
+      branchFormat: 'feature-{slug}',
+      defaultMergeTarget: 'main',
+    }
+    writeFileSync(join(dir, 'spec.config.json'), JSON.stringify(bad, null, 2))
+    expect(() => loadConfig(dir)).toThrow(/Invalid configuration/i)
+  })
 
     it('throws when config file missing', () => {
         const dir = temporaryDirectory()
